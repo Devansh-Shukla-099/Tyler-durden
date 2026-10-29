@@ -1,0 +1,15 @@
+{
+  "id": "./study-tracker-v5.html",
+  "name": "Study Tracker — Pirate Voyage",
+  "short_name": "Study Tracker",
+  "description": "A private, local-first study tracker for your daily study voyage.",
+  "start_url": "./study-tracker-v5.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#061a2b",
+  "theme_color": "#082b45",
+  "icons": [
+    { "src": "./study-tracker-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

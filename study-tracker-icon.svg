@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs><linearGradient id="ocean" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0e526f"/><stop offset="1" stop-color="#061a2b"/></linearGradient><linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ff766a"/><stop offset="1" stop-color="#c92542"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#ocean)"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#e8c77d" stroke-width="7" stroke-dasharray="8 16" opacity=".7"/>
+  <path d="M112 332 205 238M400 332 307 238" stroke="#e8c77d" stroke-width="23" stroke-linecap="round"/>
+  <path d="M124 333 104 382 153 362M388 333 408 382 359 362" fill="#e8c77d"/>
+  <path d="M146 204Q158 112 256 108Q354 112 366 204L344 223H168Z" fill="url(#red)" stroke="#f6d58c" stroke-width="9" stroke-linejoin="round"/>
+  <path d="M112 224Q256 178 400 224Q385 255 256 258Q127 255 112 224Z" fill="#f6d58c" stroke="#8f2635" stroke-width="8"/>
+  <path d="M195 269Q256 246 317 269L336 322Q325 361 256 376Q187 361 176 322Z" fill="#f6f0df" stroke="#061a2b" stroke-width="10"/>
+  <ellipse cx="220" cy="306" rx="12" ry="19" fill="#061a2b"/><ellipse cx="292" cy="306" rx="12" ry="19" fill="#061a2b"/>
+  <path d="M237 337Q256 348 275 337" fill="none" stroke="#061a2b" stroke-width="8" stroke-linecap="round"/>
+  <path d="M222 353 214 372M244 357 239 378M268 357 273 378M290 353 298 372" stroke="#061a2b" stroke-width="7" stroke-linecap="round"/>
+  <path d="M194 260Q256 239 318 260" fill="none" stroke="#d8ad5f" stroke-width="6"/>
+</svg>

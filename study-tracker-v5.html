@@ -1,0 +1,1800 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#082b45" id="meta-theme-color">
+  <meta name="description" content="A private, local-first study tracker with offline-ready support.">
+  <link rel="manifest" href="./study-tracker.webmanifest">
+  <link rel="icon" href="./study-tracker-icon.svg" type="image/svg+xml">
+  <title>Study Tracker</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --canvas: #f7f3ee;
+      --surface: #ffffff;
+      --surface-soft: #fff9f5;
+      --raised: #f4ede7;
+      --text: #292725;
+      --muted: #6c6864;
+      --line: #e6dfd9;
+      --accent: #ef5b35;
+      --accent-dark: #b83f22;
+      --accent-soft: #fde9e1;
+      --green: #26744f;
+      --green-soft: #e6f2eb;
+      --blue-soft: #e8f0fb;
+      --blue: #285f9b;
+      --shadow: 0 1px 2px rgba(42, 34, 28, .05), 0 8px 24px rgba(42, 34, 28, .035);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--canvas); }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(1100px, 100%); margin: 0 auto; padding: 20px 28px 44px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 14px; background: var(--accent); color: white; font-weight: 800; font-size: 19px; letter-spacing: -.04em; }
+    .brand-name { margin: 0; font-size: 17px; font-weight: 750; line-height: 1.2; letter-spacing: -.02em; }
+    .brand-caption { margin: 3px 0 0; color: var(--muted); font-size: 14px; }
+    .range-pill { display: inline-flex; align-items: center; min-height: 38px; padding: 7px 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+    .range-pill strong { color: var(--text); font-weight: 650; margin-left: 5px; }
+    .tabs { display: inline-flex; padding: 4px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; gap: 3px; margin-bottom: 22px; }
+    .tab { min-height: 42px; padding: 8px 15px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 650; }
+    .tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-dark); }
+    .tab:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid #3979b9; outline-offset: 2px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 0 0 16px; }
+    h1 { margin: 0; font-size: clamp(28px, 4vw, 36px); line-height: 1.15; letter-spacing: -.045em; }
+    .intro p { margin: 8px 0 0; color: var(--muted); }
+    .date-tools { display: flex; align-items: center; gap: 8px; }
+    .icon-button, .today-button { min-height: 44px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; }
+    .icon-button { width: 44px; font-size: 21px; }
+    .today-button { padding: 8px 13px; color: var(--accent-dark); font-weight: 680; }
+    .date-input { width: 150px; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--text); }
+    .week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; }
+    .day-button { min-height: 76px; padding: 8px 5px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); cursor: pointer; text-align: center; }
+    .day-button .dow { display: block; font-size: 14px; color: var(--muted); }
+    .day-button .dom { display: block; margin-top: 2px; font-size: 20px; line-height: 1.35; font-weight: 730; }
+    .day-button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .day-button[aria-pressed="true"] .dow { color: #fff3ee; }
+    .day-button:disabled { opacity: .42; cursor: not-allowed; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(300px, .9fr); align-items: start; gap: 18px; }
+    .stack { display: grid; gap: 18px; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .card-pad { padding: 20px; }
+    .card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    h2 { margin: 0; font-size: 20px; line-height: 1.3; letter-spacing: -.025em; }
+    .subheading { color: var(--muted); font-size: 14px; }
+    .session-list { display: grid; }
+    .session-row { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; align-items: center; gap: 13px; min-height: 78px; padding: 11px 0; border-top: 1px solid var(--line); }
+    .session-row:first-child { border-top: 0; }
+    .check-button { width: 44px; height: 44px; border: 1.5px solid #bdb7b1; border-radius: 13px; background: var(--surface); cursor: pointer; display: grid; place-items: center; color: white; font-size: 19px; }
+    .check-button[aria-pressed="true"] { border-color: var(--green); background: var(--green); }
+    .session-row.is-done .session-title { text-decoration: line-through; color: var(--muted); }
+    .session-title { margin: 0; font-weight: 690; font-size: 16px; line-height: 1.3; }
+    .session-meta { margin-top: 4px; color: var(--muted); font-size: 14px; }
+    .subject-list { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+    .subject-chip { display: inline-flex; align-items: center; min-height: 30px; padding: 3px 9px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 14px; white-space: nowrap; }
+    .subject-chip.maths { background: #f3ecff; color: #643b9b; }
+    .subject-chip.physics { background: #e8f0fb; color: #285f9b; }
+    .subject-chip.chemistry { background: #e8f3ea; color: #286b42; }
+    .subject-chip.full { background: #f4ede7; color: #62564b; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .metric { padding: 13px 12px; border-radius: 13px; background: var(--surface-soft); border: 1px solid var(--line); }
+    .metric-label { color: var(--muted); font-size: 14px; }
+    .metric-value { margin-top: 4px; font-size: 22px; line-height: 1.2; font-weight: 760; letter-spacing: -.04em; }
+    .metric-note { margin-top: 2px; color: var(--muted); font-size: 14px; }
+    .question-list { display: grid; gap: 10px; }
+    .question-row { display: grid; grid-template-columns: minmax(0,1fr) 104px; align-items: center; gap: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+    .question-label { display: flex; align-items: center; gap: 9px; font-weight: 650; }
+    .question-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
+    .question-row.physics .question-dot { background: #4982bd; }
+    .question-row.chemistry .question-dot { background: #4f9167; }
+    .question-input { width: 100%; min-height: 44px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); color: var(--text); text-align: right; }
+    .input-hint { color: var(--muted); font-size: 14px; margin: 12px 1px 0; }
+    .progress-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .progress-track { width: 100%; height: 11px; overflow: hidden; border-radius: 99px; background: var(--raised); }
+    .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s ease; }
+    .progress-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .progress-layout { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,.9fr); gap: 18px; }
+    .week-days { display: grid; gap: 7px; margin-top: 16px; }
+    .week-day-row { display: grid; grid-template-columns: 68px minmax(0,1fr) 84px; align-items: center; gap: 10px; min-height: 42px; }
+    .week-day-label { font-weight: 650; }
+    .mini-track { height: 9px; border-radius: 999px; background: var(--raised); overflow: hidden; }
+    .mini-fill { height: 100%; background: var(--accent); border-radius: inherit; }
+    .week-day-count { text-align: right; color: var(--muted); font-size: 14px; }
+    .subject-stats { display: grid; gap: 10px; margin-top: 14px; }
+    .subject-stat { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 12px; background: var(--surface-soft); }
+    .subject-stat strong { font-size: 16px; }
+    .subject-stat span { color: var(--muted); font-size: 14px; }
+    .backup-row { display: flex; flex-wrap: wrap; gap: 9px; }
+    .secondary-button { min-height: 44px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer; font-weight: 650; }
+    .secondary-button:hover, .today-button:hover, .icon-button:hover { background: var(--raised); }
+    .footnote { margin: 18px 2px 0; color: var(--muted); font-size: 14px; }
+    .empty-state { padding: 18px 0 6px; color: var(--muted); }
+    .status-message { min-height: 22px; margin-top: 10px; color: var(--green); font-size: 14px; }
+    .range-warning { display: none; margin: 0 0 14px; padding: 12px 14px; border: 1px solid #e9c7b9; border-radius: 12px; background: var(--accent-soft); color: var(--accent-dark); }
+    .range-warning.visible { display: block; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 760px) {
+      .shell { padding: 15px 16px 32px; }
+      .topbar { align-items: flex-start; margin-bottom: 19px; }
+      .range-pill { font-size: 14px; white-space: normal; text-align: right; max-width: 48%; }
+      .dashboard-grid, .progress-layout { grid-template-columns: 1fr; }
+      .intro { align-items: flex-start; flex-direction: column; }
+      .date-tools { width: 100%; }
+      .date-input { flex: 1; width: auto; min-width: 0; }
+      .week-strip { gap: 5px; }
+      .day-button { min-height: 68px; border-radius: 11px; }
+      .day-button .dom { font-size: 18px; }
+      .card-pad { padding: 17px; }
+      .subject-list { grid-column: 2 / 4; justify-content: flex-start; margin-top: -7px; }
+      .session-row { grid-template-columns: 46px minmax(0,1fr); gap: 10px; padding: 12px 0; }
+      .session-row .subject-list { grid-column: 2; }
+      .summary-grid { gap: 7px; }
+      .metric { padding: 11px 9px; }
+      .metric-value { font-size: 20px; }
+    }
+    @media (max-width: 390px) {
+      .shell { padding-left: 13px; padding-right: 13px; }
+      .brand-caption { max-width: 145px; }
+      .range-pill { max-width: 44%; padding: 6px 9px; }
+      .day-button .dow { font-size: 14px; }
+      .day-button .dom { font-size: 17px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .metric:last-child { grid-column: 1 / -1; }
+      .week-day-row { grid-template-columns: 62px minmax(0,1fr) 75px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --canvas: #191919;
+        --surface: #202020;
+        --surface-soft: #252321;
+        --raised: #383836;
+        --text: #f7f4f1;
+        --muted: #b9b4af;
+        --line: rgba(255,255,255,.16);
+        --accent: #ff7652;
+        --accent-dark: #ff9b7e;
+        --accent-soft: rgba(255,118,82,.13);
+        --green: #72bc8f;
+        --green-soft: rgba(114,188,143,.14);
+        --blue-soft: rgba(94,159,232,.15);
+        --blue: #8bb8eb;
+        --shadow: 0 1px 2px rgba(0,0,0,.16), 0 8px 24px rgba(0,0,0,.10);
+      }
+      .subject-chip.maths { background: rgba(191,142,218,.16); color: #d7b6ef; }
+      .subject-chip.physics { background: rgba(94,159,232,.15); color: #9ac3ef; }
+      .subject-chip.chemistry { background: rgba(114,188,143,.14); color: #a3d4b3; }
+      .subject-chip.full { background: #383836; color: #ddd5ce; }
+      .question-dot { background: #ff8a66; }
+      .question-row.physics .question-dot { background: #75a7da; }
+      .question-row.chemistry .question-dot { background: #80be93; }
+      .range-warning { border-color: rgba(255,155,126,.4); }
+    }
+
+    [hidden] { display: none !important; }
+    .chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; scrollbar-width: none; }
+    .chip { flex: none; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; font-weight: 650; color: var(--muted); }
+    .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .pnav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+    .pnav strong { flex: 1; text-align: center; font-size: 17px; }
+    .custom { display: flex; gap: 8px; margin-bottom: 14px; }
+    .custom input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--text); }
+    .sgrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin-bottom: 18px; }
+    .sgrid .metric-value { font-size: 20px; }
+    .chart-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    .notice { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #e9c7b9; border-radius: 12px; background: var(--accent-soft); color: var(--accent-dark); }
+    .card svg { width: 100%; height: auto; display: block; margin-top: 10px; }
+    .at { font-size: 11px; fill: var(--muted); }
+    .gl { stroke: var(--line); stroke-width: 1; }
+    .hit { fill: transparent; cursor: pointer; }
+    .hit.sel { fill: rgba(239,91,53,.12); }
+    circle.sel { opacity: .65; }
+    .ct { font-size: 12px; font-weight: 700; fill: var(--text); }
+    .tip { min-height: 24px; margin-top: 8px; color: var(--text); font-size: 14px; font-weight: 600; }
+    .donut { display: grid; grid-template-columns: 130px minmax(0,1fr); align-items: center; gap: 10px; }
+    .legend { display: grid; gap: 4px; }
+    .lg { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 8px; border: 0; border-radius: 10px; background: transparent; cursor: pointer; text-align: left; }
+    .lg.sel { background: var(--raised); }
+    .lg i { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+    .lg span { flex: 1; min-width: 0; }
+    .key { display: flex; gap: 14px; margin-top: 8px; color: var(--muted); font-size: 14px; }
+    .key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+    .cmp { padding: 10px 0; border-top: 1px solid var(--line); }
+    .cmp:first-of-type { border-top: 0; }
+    .cmp-h { display: flex; justify-content: space-between; font-weight: 650; }
+    .cmp-b { height: 8px; margin-top: 6px; border-radius: 99px; background: var(--raised); overflow: hidden; }
+    .cmp-b span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+    .cmp-b.prev span { background: #c9bfb6; }
+    .cmp-t { margin-top: 5px; color: var(--muted); font-size: 14px; }
+    @media (min-width: 761px) { .sgrid { grid-template-columns: repeat(4, minmax(0,1fr)); } .chart-grid { grid-template-columns: 1fr 1fr; } }
+    .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; } .tab { flex: none; }
+    .grp { margin-bottom: 12px; } .grp > summary { cursor: pointer; min-height: 44px; display: flex; flex-direction: column; justify-content: center; font-weight: 700; }
+    .ncr { display: flex; align-items: center; gap: 10px; min-height: 44px; } .ncr input, .ncf input { width: 22px; height: 22px; accent-color: var(--green); flex: none; }
+    .ncd { margin: 0 0 6px 32px; } .ncd summary { color: var(--muted); font-size: 14px; cursor: pointer; min-height: 32px; }
+    .ncf { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 14px; }
+    .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; } .tinput { flex: 1; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--text); }
+    .tdisp { font-size: clamp(44px, 16vw, 64px); font-weight: 760; letter-spacing: -.03em; font-variant-numeric: tabular-nums; text-align: center; margin: 4px 0; }
+    .tform { display: grid; gap: 8px; margin: 12px 0; } .tform label { display: grid; gap: 4px; color: var(--muted); font-size: 14px; } .tform select { min-height: 48px; width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--text); font-size: 16px; }
+    .tbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .tbtn { min-height: 56px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); font-weight: 700; font-size: 17px; cursor: pointer; } .tbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; } .span2 { grid-column: 1 / -1; }
+    .hrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); } .hrow:first-child { border-top: 0; } .hrow .acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex: 0 1 260px; } .hrow .acts button { min-height: 40px; padding: 6px 9px; }
+    .tinput { font-size: 16px; } .tform input.tinput { width: 100%; min-height: 48px; } .qnums { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .qrow { padding: 8px 0 12px; border-top: 1px solid var(--line); } .qrow .row-actions { margin: 6px 0 0; }
+    .bdg { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 13px; background: var(--raised); color: var(--muted); } .bdg.Weak { background: #fbe3e0; color: #a1281c; } .bdg.Revise { background: #fdf0d5; color: #8a5a00; }
+    .qset { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; } .qset label { display: grid; gap: 4px; color: var(--muted); font-size: 14px; }
+    .hm-scroll { overflow-x: auto; padding-bottom: 6px; } .hm-inner { width: max-content; }
+    .hm-mon { display: grid; grid-auto-flow: column; grid-auto-columns: 14px; gap: 3px; height: 16px; } .hm-mon b { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: visible; }
+    .hm { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 14px); grid-auto-columns: 14px; gap: 3px; }
+    .hmc { width: 14px; height: 14px; padding: 0; border: 0; border-radius: 3px; background: #ece6df; cursor: pointer; } .hm i { width: 14px; height: 14px; }
+    .hmc.before { background: transparent; border: 1px dashed #cfc6bd; } .hmc.future { background: transparent; border: 1px solid var(--line); } .hmc.zero { background: #efbdb1; } .hmc.low { background: #f6dfae; } .hmc.active { background: #9ccdb2; } .hmc.goal { background: #26744f; } .hmc.today { background: #fff; border: 2px solid var(--accent); } .hmc.sel { outline: 2px solid var(--text); outline-offset: 1px; }
+    .hm-key { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; color: var(--muted); font-size: 14px; } .hm-key .hmc { display: inline-block; vertical-align: -2px; margin-right: 5px; cursor: default; }
+
+    /* Pirate-adventure visual system: original CSS artwork, no borrowed anime assets. */
+    .header-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+    .theme-toggle, .install-button { min-height:42px; padding:7px 11px; font-size:13px; }
+    .brand-mark { box-shadow: 0 5px 0 rgba(0,0,0,.12); border:2px solid rgba(255,255,255,.4); }
+    .brand-name { letter-spacing:.01em; }
+    .more-menu { position:relative; z-index:10; margin:-10px 0 16px auto; max-width:520px; padding:10px; border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow); display:flex; flex-wrap:wrap; gap:8px; }
+    .more-menu[hidden] { display:none; }
+    .more-menu button { min-height:44px; border:1px solid var(--line); border-radius:12px; padding:8px 12px; background:var(--surface-soft); color:var(--text); font-weight:650; cursor:pointer; }
+    .mobile-nav { display:none; }
+    .install-note { margin:0 0 14px; padding:10px 13px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--muted); font-size:13px; }
+    .theme-pirate { --canvas:#061a2b; --surface:#0c2a40; --surface-soft:#10354d; --raised:#17435a; --text:#f4f2e8; --muted:#b4c8d0; --line:#28536a; --accent:#e84b4b; --accent-dark:#ff8580; --accent-soft:#4a2632; --green:#63c49a; --green-soft:#153e3b; --blue-soft:#183e59; --blue:#8dd5f4; --shadow:0 5px 18px rgba(0,0,0,.18),0 0 0 1px rgba(93,171,202,.025); color-scheme:dark; }
+    .theme-pirate { background-image:radial-gradient(ellipse at 10% 5%,rgba(30,119,151,.18),transparent 35%),radial-gradient(ellipse at 90% 18%,rgba(232,75,75,.10),transparent 28%),repeating-linear-gradient(135deg,rgba(255,255,255,.012) 0,rgba(255,255,255,.012) 1px,transparent 1px,transparent 12px); background-attachment:fixed; }
+    .theme-pirate .brand-mark { background:linear-gradient(145deg,#f05b55,#b51f36); }
+    .theme-pirate .topbar { padding-bottom:15px; border-bottom:1px solid var(--line); }
+    .theme-pirate .card { border-color:#28536a; background-image:linear-gradient(145deg,rgba(255,255,255,.018),transparent 45%); }
+    .theme-pirate .card-heading h2, .theme-pirate h1 { text-shadow:0 2px 0 rgba(0,0,0,.12); }
+    .theme-pirate .metric { background:linear-gradient(145deg,#10354d,#0b293e); border-color:#28536a; }
+    .theme-pirate .metric::before { content:'✦ TREASURE LOG'; display:block; color:#e6c47b; font-size:10px; font-weight:800; letter-spacing:.12em; margin-bottom:3px; }
+    .theme-pirate .metric-value { color:#fff0c5; }
+    .theme-pirate .tab[aria-selected="true"], .theme-pirate .chip[aria-pressed="true"] { background:#e84b4b; color:white; }
+    .theme-pirate .subject-chip.full { background:#284456; color:#f4dca1; }
+    .theme-pirate .bdg { border:1px dashed #c9a86a; background:#15364a; color:#f1d89d; font-weight:750; letter-spacing:.02em; }
+    .theme-pirate .bdg.Weak { background:#542a36; color:#ffaaa3; }
+    .theme-pirate .bdg.Revise { background:#4b4029; color:#ffe09b; }
+    .theme-pirate .progress-fill { background:linear-gradient(90deg,#e84b4b,#ffb15c); }
+    .theme-pirate .today-button, .theme-pirate .tbtn.primary { background:#e84b4b; color:white; border-color:#e84b4b; }
+    .theme-pirate .range-pill { background:#0c2a40; border-color:#28536a; }
+    .theme-pirate .hmc.zero { background:#7a3942; } .theme-pirate .hmc.low { background:#8b7040; } .theme-pirate .hmc.active { background:#327d77; } .theme-pirate .hmc.goal { background:#319a72; }
+    .theme-pirate .hmc.today { background:#e84b4b; border-color:#ffd8a8; }
+    .theme-standard { --canvas:#f7f3ee; --surface:#ffffff; --surface-soft:#fff9f5; --raised:#f4ede7; --text:#292725; --muted:#6c6864; --line:#e6dfd9; --accent:#ef5b35; --accent-dark:#b83f22; --accent-soft:#fde9e1; --green:#26744f; --green-soft:#e6f2eb; --blue-soft:#e8f0fb; --blue:#285f9b; --shadow:0 1px 2px rgba(42,34,28,.05),0 8px 24px rgba(42,34,28,.035); color-scheme:light; background-image:none; }
+    .theme-standard .metric::before { content:none; }
+    .theme-standard .brand-mark { background:var(--accent); }
+    .theme-standard .topbar { border-bottom:0; }
+    .view.active { animation: voyage-in .18s ease-out; }
+    @keyframes voyage-in { from { opacity:.75; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+    button, .card { -webkit-tap-highlight-color:transparent; }
+    button { touch-action:manipulation; }
+    @media (max-width:760px) {
+      body { padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+      .shell { padding:12px 12px 22px; }
+      .topbar { gap:8px; align-items:center; margin-bottom:14px; }
+      .brand { gap:9px; }
+      .brand-mark { width:38px; height:38px; border-radius:12px; flex:none; }
+      .brand-name { font-size:16px; }
+      .brand-caption { font-size:12px; line-height:1.25; max-width:170px; }
+      .header-actions { flex-direction:column; align-items:stretch; gap:5px; }
+      .range-pill { max-width:100%; width:100%; justify-content:center; text-align:center; padding:5px 7px; font-size:11px; min-height:30px; }
+      .theme-toggle, .install-button { min-height:36px; font-size:12px; padding:5px 8px; }
+      .tabs { display:none; }
+      .mobile-nav { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:2px; position:fixed; z-index:50; left:0; right:0; bottom:0; padding:7px 8px calc(7px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); background:color-mix(in srgb,var(--surface) 94%,transparent); backdrop-filter:blur(14px); box-shadow:0 -8px 24px rgba(0,0,0,.14); }
+      .mobile-nav button { min-width:0; min-height:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:0; border-radius:12px; background:transparent; color:var(--muted); cursor:pointer; }
+      .mobile-nav button span { font-size:19px; line-height:1.2; }
+      .mobile-nav button small { font-size:10px; font-weight:750; letter-spacing:.01em; }
+      .mobile-nav button[aria-current="page"] { background:var(--accent-soft); color:var(--accent-dark); }
+      .theme-pirate .mobile-nav { border-top-color:#28536a; }
+      .more-menu { position:fixed; z-index:49; bottom:calc(76px + env(safe-area-inset-bottom)); left:10px; right:10px; max-width:none; margin:0; box-shadow:0 14px 38px rgba(0,0,0,.32); }
+      .more-menu button { flex:1 1 40%; }
+      .intro { gap:10px; margin-bottom:12px; }
+      h1 { font-size:28px; }
+      .card-pad { padding:15px; }
+      .summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .metric:last-child { grid-column:auto; }
+      .metric-value { font-size:20px; }
+      .week-strip { gap:4px; }
+      .day-button { min-width:0; min-height:62px; padding:6px 2px; }
+      .day-button .dow { font-size:11px; }
+      .day-button .dom { font-size:17px; }
+      .session-row { grid-template-columns:42px minmax(0,1fr); }
+      .subject-list { grid-column:2; }
+      .question-row { grid-template-columns:minmax(0,1fr) 88px; gap:8px; padding:9px; }
+      .tbtn { min-height:52px; }
+      .hrow { flex-direction:column; }
+      .hrow .acts { flex:1 1 auto; justify-content:flex-start; }
+      .hm-scroll { max-width:calc(100vw - 58px); }
+    }
+    @media (max-width:360px) { .brand-caption { display:none; } .theme-toggle { font-size:11px; } .shell { padding-left:9px; padding-right:9px; } }
+    @media (prefers-reduced-motion:reduce) { .view.active { animation:none; } }
+  </style>
+</head>
+<body class="theme-pirate">
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">☠</div>
+        <div>
+          <p class="brand-name" id="brand-name">Study Tracker</p>
+          <p class="brand-caption" id="brand-caption">Chart your course. Claim your goals.</p>
+        </div>
+      </div>
+      <div class="header-actions"><button class="secondary-button theme-toggle" id="theme-toggle" type="button" aria-pressed="true" title="Switch to standard theme">☀ Standard</button><button class="secondary-button install-button" id="install-app" type="button">＋ Install</button><div class="range-pill">Plan ends <strong>31 May 2028</strong></div></div>
+    </header>
+
+    <nav class="tabs" aria-label="Main sections" role="tablist">
+      <button class="tab" id="tab-day" role="tab" aria-selected="true" aria-controls="view-day">Daily plan</button>
+      <button class="tab" id="tab-timetable" role="tab" aria-selected="false" aria-controls="view-timetable">Weekly timetable</button>
+      <button class="tab" id="tab-timer" role="tab" aria-selected="false" aria-controls="view-timer">Timer</button>
+      <button class="tab" id="tab-qs" role="tab" aria-selected="false" aria-controls="view-qs">Questions</button>
+      <button class="tab" id="tab-cs" role="tab" aria-selected="false" aria-controls="view-cs">Consistency</button>
+      <button class="tab" id="tab-progress" role="tab" aria-selected="false" aria-controls="view-progress">Progress</button>
+      <button class="tab" id="tab-stats" role="tab" aria-selected="false" aria-controls="view-stats">Statistics</button>
+      <button class="tab" id="tab-ncert" role="tab" aria-selected="false" aria-controls="view-ncert">NCERT</button>
+      <button class="tab" id="tab-backup" role="tab" aria-selected="false" aria-controls="view-backup">Backup</button>
+    </nav>
+    <div id="more-menu" class="more-menu" hidden aria-label="More sections">
+      <button type="button" data-goto="timer">⏱ Timer</button><button type="button" data-goto="cs">🔥 Consistency</button><button type="button" data-goto="progress">📈 Progress</button><button type="button" data-goto="ncert">📚 NCERT</button><button type="button" data-goto="backup">🛟 Backup</button>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
+      <button type="button" data-tab="day" aria-current="page"><span>☀</span><small>Today</small></button>
+      <button type="button" data-tab="timetable"><span>🧭</span><small>Plan</small></button>
+      <button type="button" data-tab="qs"><span>⚓</span><small>Questions</small></button>
+      <button type="button" data-tab="stats"><span>📊</span><small>Stats</small></button>
+      <button type="button" id="more-toggle" aria-expanded="false"><span>☰</span><small>More</small></button>
+    </nav>
+    <div id="install-note" class="install-note" hidden></div>
+    <div id="save-warning" class="notice" role="alert" hidden></div>
+    <div id="backup-reminder" class="notice" role="status" hidden></div>
+
+    <main>
+      <section id="view-day" class="view active" role="tabpanel" aria-labelledby="tab-day">
+        <div class="intro">
+          <div>
+            <h1 id="daily-title">Your daily plan</h1>
+            <p id="date-long">Pick a date to see your study plan.</p>
+          </div>
+          <div class="date-tools" aria-label="Choose a date">
+            <button class="icon-button" id="previous-day" type="button" aria-label="Previous day">‹</button>
+            <label class="sr-only" for="date-picker">Select date</label>
+            <input class="date-input" id="date-picker" type="date" min="2026-10-30" max="2028-05-31">
+            <button class="icon-button" id="next-day" type="button" aria-label="Next day">›</button>
+            <button class="today-button" id="go-today" type="button">Today</button>
+          </div>
+        </div>
+
+        <div id="range-warning" class="range-warning" role="status">Today's date is outside the study-plan range. The nearest available date is shown; choose any date from 30 Oct 2026 to 31 May 2028.</div>
+        <div class="week-strip" id="week-strip" aria-label="Dates in the selected week"></div>
+
+        <div class="dashboard-grid">
+          <section class="card card-pad" aria-labelledby="plan-heading">
+            <div class="card-heading">
+              <div>
+                <h2 id="plan-heading">Today's plan</h2>
+                <div class="subheading" id="session-subheading">Tick a session when you finish it.</div>
+              </div>
+              <span class="subject-chip full" id="session-count">0 / 0 done</span>
+            </div>
+            <div class="session-list" id="session-list"></div>
+          </section>
+
+          <div class="stack">
+            <section class="card card-pad" aria-labelledby="today-summary-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="today-summary-heading">Daily summary</h2>
+                  <div class="subheading">Your progress for this date</div>
+                </div>
+              </div>
+              <div class="summary-grid">
+                <div class="metric">
+                  <div class="metric-label">Sessions</div>
+                  <div class="metric-value" id="today-sessions">0 / 0</div>
+                  <div class="metric-note">completed</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Study time</div>
+                  <div class="metric-value" id="today-minutes">0m</div>
+                  <div class="metric-note">scheduled time done</div>
+                </div>
+                <div class="metric">
+                  <div class="metric-label">Questions</div>
+                  <div class="metric-value" id="today-questions">0</div>
+                  <div class="metric-note">logged today</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card card-pad" aria-labelledby="questions-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="questions-heading">Questions solved</h2>
+                  <div class="subheading">Enter the number you completed today.</div>
+                </div>
+              </div>
+              <div class="question-list" id="question-list"></div>
+              <p class="input-hint">Leave a field blank until you have a number to record.</p>
+            </section>
+          </div>
+        </div>
+        <p class="footnote">This standalone app saves data in this browser only. Export a backup regularly; it does not sync with Notion.</p>
+      </section>
+
+      <section id="view-timetable" class="view" role="tabpanel" aria-labelledby="tab-timetable" hidden>
+        <div class="intro"><div><h1>Weekly timetable</h1><p>Edit your recurring plan for all seven days. Changes are stored separately from your tracker logs.</p></div></div>
+        <section class="card card-pad">
+          <div class="chips" id="tt-days" aria-label="Choose day"></div>
+          <div class="card-heading"><div><h2 id="tt-day-title">Monday</h2><div class="subheading" id="tt-total">0 scheduled</div></div><button class="secondary-button" id="tt-add" type="button">＋ Add slot</button></div>
+          <div id="tt-slots"></div>
+          <div class="notice" id="tt-conflicts" hidden></div>
+          <div class="row-actions"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">Copy this day to <select id="tt-copy-day" class="tinput"></select></label><button class="secondary-button" id="tt-copy" type="button">Copy schedule</button></div>
+          <div class="row-actions"><button class="secondary-button" id="tt-reset" type="button">Reset timetable to defaults</button><button class="secondary-button" id="tt-export" type="button">Export timetable</button><button class="secondary-button" id="tt-import" type="button">Import timetable</button><input id="tt-file" type="file" accept="application/json,.json" hidden></div>
+          <div class="status-message" id="tt-status" aria-live="polite"></div>
+        </section>
+        <section class="card card-pad" style="margin-top:14px"><h2 id="tt-form-title">Add a slot</h2><form id="tt-form" class="tform">
+          <label>Activity<input class="tinput" id="tt-activity" maxlength="100" required placeholder="e.g. Self-study / Break / Test"></label>
+          <label>Subject<input class="tinput" id="tt-subject" maxlength="100" placeholder="e.g. Maths, Physics, Chemistry or None"></label>
+          <div class="qset"><label>Start time<input class="tinput" id="tt-start" type="time" required value="08:00"></label><label>End time<input class="tinput" id="tt-end" type="time" required value="09:00"></label></div>
+          <div id="tt-duration" class="subheading">Duration: 1h</div>
+          <div class="row-actions"><button class="tbtn primary" type="submit" id="tt-save">Add slot</button><button class="secondary-button" type="button" id="tt-cancel" hidden>Cancel edit</button></div>
+        </form></section>
+      </section>
+      <section id="view-progress" class="view" role="tabpanel" aria-labelledby="tab-progress" hidden>
+        <div class="intro">
+          <div>
+            <h1>Progress</h1>
+            <p id="progress-caption">Your logged study and question totals.</p>
+          </div>
+        </div>
+        <div class="progress-layout">
+          <div class="stack">
+            <section class="card card-pad" aria-labelledby="week-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="week-heading">Week to date</h2>
+                  <div class="subheading" id="week-dates">—</div>
+                </div>
+              </div>
+              <div class="progress-head"><strong id="week-completion">0%</strong><span class="subheading" id="week-session-total">0 of 0 sessions</span></div>
+              <div class="progress-track" role="progressbar" aria-label="Study sessions completed this week" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="week-progressbar"><div class="progress-fill" id="week-progress-fill"></div></div>
+              <div class="progress-foot"><span id="week-time">0m completed</span><span id="week-questions">0 questions</span></div>
+              <div class="week-days" id="week-days-list"></div>
+            </section>
+            <section class="card card-pad" aria-labelledby="lifetime-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="lifetime-heading">Since the start</h2>
+                  <div class="subheading" id="lifetime-period">30 Oct 2026 onward</div>
+                </div>
+              </div>
+              <div class="summary-grid">
+                <div class="metric"><div class="metric-label">Sessions</div><div class="metric-value" id="total-sessions">0</div><div class="metric-note">completed</div></div>
+                <div class="metric"><div class="metric-label">Study time</div><div class="metric-value" id="total-minutes">0m</div><div class="metric-note">scheduled time done</div></div>
+                <div class="metric"><div class="metric-label">Questions</div><div class="metric-value" id="total-questions">0</div><div class="metric-note">logged</div></div>
+              </div>
+            </section>
+          </div>
+          <div class="stack">
+            <section class="card card-pad" aria-labelledby="subject-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="subject-heading">Questions by subject</h2>
+                  <div class="subheading">Totals from your saved daily entries.</div>
+                </div>
+              </div>
+              <div class="subject-stats" id="subject-stats"></div>
+            </section>
+            <section class="card card-pad" aria-labelledby="backup-heading">
+              <div class="card-heading">
+                <div>
+                  <h2 id="backup-heading">Your data</h2>
+                  <div class="subheading">Download or restore a local JSON backup.</div>
+                </div>
+              </div>
+              <div class="backup-row">
+                <button type="button" class="secondary-button" id="export-data">Export backup</button>
+                <button type="button" class="secondary-button" id="import-data">Import backup</button>
+                <input type="file" id="import-file" accept="application/json,.json" hidden>
+              </div>
+              <div class="status-message" id="status-message" aria-live="polite"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+      <section id="view-stats" class="view" role="tabpanel" aria-labelledby="tab-stats">
+        <div class="intro">
+          <div><h1>Statistics</h1><p>Built from the sessions and questions you've logged.</p></div>
+          <button class="secondary-button" id="stats-csv" type="button">Export CSV</button>
+        </div>
+        <div class="chips" id="stats-periods" role="group" aria-label="Time period"></div>
+        <div class="pnav">
+          <button class="icon-button" id="stats-prev" type="button" aria-label="Previous period">‹</button>
+          <strong id="stats-label"></strong>
+          <button class="icon-button" id="stats-next" type="button" aria-label="Next period">›</button>
+        </div>
+        <div class="custom" id="stats-custom" hidden>
+          <input type="date" id="stats-from" aria-label="From date" min="2026-10-30" max="2028-05-31">
+          <input type="date" id="stats-to" aria-label="To date" min="2026-10-30" max="2028-05-31">
+        </div>
+        <div id="stats-root"></div>
+      </section>
+      <section id="view-timer" class="view" role="tabpanel" aria-labelledby="tab-timer">
+        <div class="intro"><div><h1>Study timer</h1><p>Counts focused time only. Paused time is never included.</p></div></div>
+        <section class="card card-pad">
+          <div id="t-disp" class="tdisp" role="timer">00:00:00</div>
+          <div id="t-status" class="subheading" style="text-align:center"></div>
+          <div id="t-gap" class="notice" hidden style="margin-top:12px"><span id="t-gap-text"></span><div class="row-actions"><button class="secondary-button" id="t-gap-keep" type="button">Count it</button><button class="secondary-button" id="t-gap-drop" type="button">Don't count it</button></div></div>
+          <div class="tform">
+            <label>Subject<select id="t-sub"></select></label>
+            <label>Chapter (optional)<select id="t-ch"></select></label>
+            <label>Activity<select id="t-act"></select></label>
+          </div>
+          <div class="tbtns">
+            <button class="tbtn primary span2" id="t-start" type="button">Start</button>
+            <button class="tbtn primary" id="t-pause" type="button" hidden>Pause</button>
+            <button class="tbtn primary" id="t-resume" type="button" hidden>Resume</button>
+            <button class="tbtn" id="t-stop" type="button" hidden>Stop and save</button>
+            <button class="secondary-button span2" id="t-discard" type="button" hidden>Discard this session</button>
+          </div>
+          <div id="t-msg" class="status-message" role="status"></div>
+        </section>
+        <h2 style="margin:18px 2px 10px">Totals from saved sessions</h2>
+        <div class="sgrid" id="t-totals"></div>
+        <div class="chips" id="t-per" role="group" aria-label="Breakdown period"></div>
+        <section class="card card-pad"><h2>Breakdown</h2><div id="t-break"></div></section>
+        <section class="card card-pad" style="margin-top:14px"><h2>Session history</h2><div id="t-hist"></div></section>
+      </section>
+      <section id="view-qs" class="view" role="tabpanel" aria-labelledby="tab-qs">
+        <div class="intro"><div><h1>Question tracker</h1><p>Attempted = correct + incorrect. Skipped = seen but not attempted. Accuracy = correct ÷ attempted. Retries are counted separately from first attempts.</p></div></div>
+        <section class="card card-pad">
+          <h2 id="q-title">Log questions</h2>
+          <div class="tform">
+            <label>Chapter<select id="q-ch"></select></label>
+            <label>Source<select id="q-src"></select></label>
+            <label>Date<input class="tinput" type="date" id="q-date" min="2026-10-30" max="2028-05-31"></label>
+            <div class="qnums"><label>Correct<input class="tinput" id="q-cor" type="number" inputmode="numeric" min="0"></label><label>Incorrect<input class="tinput" id="q-inc" type="number" inputmode="numeric" min="0"></label><label>Skipped<input class="tinput" id="q-skp" type="number" inputmode="numeric" min="0"></label></div>
+            <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="q-retry" style="width:22px;height:22px"> These are retries of questions I attempted before</label>
+          </div>
+          <div class="row-actions"><button class="tbtn primary" style="flex:1" id="q-save" type="button">Add entry</button><button class="secondary-button" id="q-cancel" type="button" hidden>Cancel edit</button></div>
+          <div id="q-msg" class="status-message" role="status"></div>
+        </section>
+        <h2 style="margin:18px 2px 10px">Statistics</h2>
+        <div class="sgrid" id="q-roll"></div>
+        <div class="row-actions"><select class="tinput" id="q-fcls" aria-label="Class filter"></select><select class="tinput" id="q-fsub" aria-label="Subject filter"></select><select class="tinput" id="q-fsrc" aria-label="Source filter"></select></div>
+        <div class="chips" id="q-per" role="group" aria-label="Period"></div>
+        <div class="sgrid" id="q-sum"></div>
+        <section class="card card-pad"><h2>By source</h2><div id="q-srcs"></div></section>
+        <section class="card card-pad" style="margin-top:14px"><h2>Chapters</h2><div class="qset" id="q-set"></div><div id="q-chs"></div></section>
+        <section class="card card-pad" style="margin-top:14px"><h2>Recent entries</h2><div id="q-ent"></div></section>
+      </section>
+      <section id="view-cs" class="view" role="tabpanel" aria-labelledby="tab-cs">
+        <div class="intro"><div><h1>Consistency</h1><p>An active day = at least your minimum minutes of study. Rules are listed at the bottom.</p></div></div>
+        <div class="chips" id="cs-periods" role="group" aria-label="Time period"></div>
+        <div class="pnav"><button class="icon-button" id="cs-prev" type="button" aria-label="Previous period">‹</button><strong id="cs-label"></strong><button class="icon-button" id="cs-next" type="button" aria-label="Next period">›</button></div>
+        <div id="cs-root"></div>
+      </section>
+      <section id="view-ncert" class="view" role="tabpanel" aria-labelledby="tab-ncert">
+        <div class="intro"><div><h1>NCERT chapters</h1><p id="nc-basis"></p></div></div>
+        <div id="nc-root"></div>
+      </section>
+      <section id="view-backup" class="view" role="tabpanel" aria-labelledby="tab-backup">
+        <div class="intro"><div><h1>Backup and restore</h1><p>Your data is stored only in this browser on this device. It is not a cloud backup, and clearing site data or reinstalling the app can erase it. Export a file regularly.</p></div></div>
+        <section class="card card-pad">
+          <p id="bk-last"></p>
+          <p id="bk-protection" class="notice" role="status">Local protection status will appear here.</p>
+          <div class="row-actions"><button class="secondary-button" id="bk-export" type="button">Export backup (JSON)</button><button class="secondary-button" id="bk-import" type="button">Import backup…</button><button type="button" class="secondary-button" id="bk-reset">Reset all tracker data…</button></div>
+          <p class="subheading">Automatic recovery snapshots stay in this browser when storage permits. They are not a substitute for downloading a backup to another device.</p>
+          <label>Remind me if no backup for <select id="bk-days" class="tinput" style="flex:none;width:auto"><option value="0">never</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>
+        </section>
+        <section class="card card-pad" id="import-panel" hidden style="margin-top:14px"><h2>Import this file?</h2><p id="imp-info"></p><p class="subheading">Merge keeps what you already have: sessions ticked in either place stay ticked, existing question counts win over the file's, chapters ticked in either stay ticked, custom chapters are added. Replace swaps everything for the file. A restore point is saved before either.</p><div class="row-actions"><button class="secondary-button" id="imp-merge" type="button">Merge</button><button class="secondary-button" id="imp-replace" type="button">Replace everything</button><button class="secondary-button" id="imp-cancel" type="button">Cancel</button></div></section>
+        <section class="card card-pad" style="margin-top:14px"><h2>Restore point</h2><p id="rp-info"></p><button class="secondary-button" id="rp-restore" type="button">Restore it</button><p class="subheading">Restoring swaps: your current data becomes the new restore point, so nothing is lost.</p></section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+      const START = '2026-10-30';
+      const END = '2028-05-31';
+      const SUBJECTS = ['Maths', 'Physics', 'Chemistry'];
+      const DB_KEY = 'study-tracker-local-v1';
+      const AUTO_KEY = 'study-tracker-auto-backup-v1';
+      const DAILY_KEY = 'study-tracker-daily-backup-v1';
+      const MAX_IMPORT_BYTES = 8 * 1024 * 1024;
+      const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      let SCHEDULES = {
+        0: [
+          ['08:00', 120, 'Revision', ['Maths']],
+          ['10:15', 120, 'Revision', ['Physics']],
+          ['13:00', 120, 'Revision', ['Chemistry']],
+          ['15:15', 180, 'Test', ['Full syllabus']],
+          ['18:45', 75, 'Test analysis', ['Full syllabus']]
+        ],
+        1: [
+          ['08:00', 120, 'Lecture 1', ['Maths']],
+          ['10:00', 120, 'Lecture 2', ['Chemistry']],
+          ['12:45', 165, 'Self study', ['Maths']],
+          ['15:45', 135, 'Self study', ['Chemistry']],
+          ['18:30', 90, 'Revision', ['Maths', 'Chemistry']]
+        ],
+        2: [
+          ['08:00', 120, 'Lecture 1', ['Physics']],
+          ['10:00', 120, 'Lecture 2', ['Maths']],
+          ['12:45', 165, 'Self study', ['Maths']],
+          ['15:45', 135, 'Self study', ['Physics']],
+          ['18:30', 90, 'Revision', ['Physics', 'Maths']]
+        ],
+        3: [
+          ['08:00', 120, 'Lecture 1', ['Physics']],
+          ['10:00', 120, 'Lecture 2', ['Chemistry']],
+          ['12:45', 150, 'Self study', ['Physics']],
+          ['15:30', 150, 'Self study', ['Chemistry']],
+          ['18:30', 90, 'Revision', ['Physics', 'Chemistry']]
+        ],
+        4: [
+          ['08:00', 120, 'Lecture 1', ['Maths']],
+          ['10:00', 120, 'Lecture 2', ['Chemistry']],
+          ['12:45', 165, 'Self study', ['Maths']],
+          ['15:45', 135, 'Self study', ['Chemistry']],
+          ['18:30', 90, 'Revision', ['Maths', 'Chemistry']]
+        ],
+        5: [
+          ['08:00', 120, 'Lecture 1', ['Maths']],
+          ['10:00', 120, 'Lecture 2', ['Physics']],
+          ['12:45', 165, 'Self study', ['Maths']],
+          ['15:45', 135, 'Self study', ['Physics']],
+          ['18:30', 90, 'Revision', ['Maths', 'Physics']]
+        ],
+        6: [
+          ['08:00', 120, 'Lecture 1', ['Physics']],
+          ['10:00', 120, 'Lecture 2', ['Chemistry']],
+          ['12:45', 150, 'Self study', ['Physics']],
+          ['15:30', 150, 'Self study', ['Chemistry']],
+          ['18:30', 90, 'Revision', ['Physics', 'Chemistry']]
+        ]
+      };
+
+      const DEFAULT_SCHEDULES = JSON.parse(JSON.stringify(SCHEDULES));
+      const TT_KEY = 'study-tracker-weekly-timetable-v1';
+      let ttDay = 1, ttEditing = null;
+      function cleanSchedule(raw) {
+        const out = {};
+        for (let d = 0; d < 7; d++) out[d] = (Array.isArray(raw && raw[d]) ? raw[d] : []).map(x => {
+          if (!Array.isArray(x) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(x[0])) || !Number.isFinite(Number(x[1])) || Number(x[1]) <= 0) return null;
+          return [String(x[0]), Math.min(1440, Math.round(Number(x[1]))), String(x[2] || 'Study').slice(0,100), Array.isArray(x[3]) ? x[3].map(v => String(v).slice(0,100)).slice(0,5) : [String(x[3] || 'None').slice(0,100)]];
+        }).filter(Boolean);
+        return out;
+      }
+      function loadTimetable() { try { const raw = localStorage.getItem(TT_KEY); return raw ? cleanSchedule(JSON.parse(raw)) : cleanSchedule(DEFAULT_SCHEDULES); } catch (_) { return cleanSchedule(DEFAULT_SCHEDULES); } }
+      function saveTimetable(message='Timetable saved on this device.') { try { localStorage.setItem(TT_KEY, JSON.stringify(SCHEDULES)); $('tt-status').textContent = message; return true; } catch (_) { $('tt-status').textContent = 'Could not save. Export a timetable backup.'; return false; } }
+      SCHEDULES = loadTimetable();
+      const $ = (id) => document.getElementById(id);
+      let data = loadData();
+      let selectedDate = clampDate(todayISO());
+
+      function parseStoredData(raw) {
+        if (!raw || raw.length > MAX_IMPORT_BYTES) return null;
+        const p = JSON.parse(raw);
+        if (!p || typeof p !== 'object' || ![1, 2].includes(p.version) || !p.days || typeof p.days !== 'object' || Array.isArray(p.days)) return null;
+        // Reject obviously malformed structures instead of silently replacing valid user data.
+        if (Object.keys(p.days).length > 20000) return null;
+        for (const [date, rec] of Object.entries(p.days)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+        }
+        return norm(p);
+      }
+      function preserveRaw(raw, label) {
+        if (!raw) return;
+        try { localStorage.setItem('study-tracker-unreadable', JSON.stringify({ at: new Date().toISOString(), label, raw: raw.slice(0, MAX_IMPORT_BYTES) })); } catch (_) {}
+      }
+      function loadData() {
+        let raw = null;
+        try {
+          raw = localStorage.getItem(DB_KEY);
+          if (raw) {
+            const parsed = parseStoredData(raw);
+            if (parsed) {
+              if (parsed.version === 1) { try { localStorage.setItem('study-tracker-restore-v1', JSON.stringify({ at: new Date().toISOString(), label: 'Before upgrade to format v2', data: parsed })); } catch (_) {} }
+              return parsed;
+            }
+            preserveRaw(raw, 'Unreadable primary data');
+          }
+        } catch (_) { preserveRaw(raw, 'Primary data could not be read'); }
+        // Recover from the last-good snapshot rather than opening an empty tracker.
+        try {
+          const snap = JSON.parse(localStorage.getItem(AUTO_KEY) || 'null');
+          const recovered = snap && parseStoredData(JSON.stringify(snap.data));
+          if (recovered) {
+            try { localStorage.setItem(DB_KEY, JSON.stringify(recovered)); } catch (_) {}
+            window.setTimeout(() => { const el = document.getElementById('status-message'); if (el) el.textContent = 'Recovered from the last automatic backup. Export a fresh backup now.'; }, 0);
+            return recovered;
+          }
+        } catch (_) {}
+        try {
+          const daily = JSON.parse(localStorage.getItem(DAILY_KEY) || 'null');
+          const recovered = daily && parseStoredData(JSON.stringify(daily.data));
+          if (recovered) {
+            try { localStorage.setItem(DB_KEY, JSON.stringify(recovered)); } catch (_) {}
+            window.setTimeout(() => { const el = document.getElementById('status-message'); if (el) el.textContent = 'Recovered from the daily automatic snapshot. Export a fresh backup now.'; }, 0);
+            return recovered;
+          }
+        } catch (_) {}
+        return fresh();
+      }
+      function writeSnapshot(key, label) {
+        try {
+          const snapshot = { at: new Date().toISOString(), label, data };
+          localStorage.setItem(key, JSON.stringify(snapshot));
+          return true;
+        } catch (_) { return false; }
+      }
+      function saveData(message = 'Saved in this browser.') {
+        try {
+          const current = localStorage.getItem(DB_KEY);
+          // Keep a last-good copy before replacing the primary record.
+          if (current) {
+            try { const valid = parseStoredData(current); if (valid) localStorage.setItem(AUTO_KEY, JSON.stringify({ at: new Date().toISOString(), label: 'Automatic last-good snapshot', data: valid })); else preserveRaw(current, 'Primary data was invalid before save'); } catch (_) { preserveRaw(current, 'Primary data could not be parsed before save'); }
+          }
+          // Keep one daily snapshot as an additional rollback point.
+          try {
+            const daily = JSON.parse(localStorage.getItem(DAILY_KEY) || 'null');
+            if (!daily || daily.day !== todayISO()) localStorage.setItem(DAILY_KEY, JSON.stringify({ day: todayISO(), at: new Date().toISOString(), label: 'Daily automatic snapshot', data }));
+          } catch (_) {}
+          localStorage.setItem(DB_KEY, JSON.stringify(data));
+          const target = $('status-message');
+          if (target) target.textContent = message;
+          warnSave(false);
+          return true;
+        } catch (_) {
+          const target = $('status-message');
+          if (target) target.textContent = 'Could not save. Storage may be full or blocked. Export a backup before continuing.';
+          warnSave(true);
+          return false;
+        }
+      }
+      function todayISO() {
+        const d = new Date();
+        return toISO(d);
+      }
+      function toISO(d) {
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      }
+      function fromISO(iso) { return new Date(`${iso}T12:00:00`); }
+      function addDays(iso, amount) {
+        const d = fromISO(iso);
+        d.setDate(d.getDate() + amount);
+        return toISO(d);
+      }
+      function clampDate(iso) {
+        if (iso < START) return START;
+        if (iso > END) return END;
+        return iso;
+      }
+      function dateLabel(iso, options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) {
+        return fromISO(iso).toLocaleDateString(undefined, options);
+      }
+      function dayIndex(iso) { return fromISO(iso).getDay(); }
+      function getRecord(iso) {
+        if (!data.days[iso]) data.days[iso] = { sessions: {}, questions: {} };
+        if (!data.days[iso].sessions) data.days[iso].sessions = {};
+        if (!data.days[iso].questions) data.days[iso].questions = {};
+        return data.days[iso];
+      }
+      function formatTime(time, minutes) {
+        const [h, m] = time.split(':').map(Number);
+        const endTotal = h * 60 + m + minutes;
+        const end = `${String(Math.floor(endTotal / 60) % 24).padStart(2,'0')}:${String(endTotal % 60).padStart(2,'0')}`;
+        return `${time}–${end}`;
+      }
+      function formatMinutes(minutes) {
+        const h = Math.floor(minutes / 60), m = minutes % 60;
+        return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+      }
+      function subjectClass(subject) {
+        const lower = subject.toLowerCase();
+        return lower === 'maths' ? 'maths' : lower === 'physics' ? 'physics' : lower === 'chemistry' ? 'chemistry' : 'full';
+      }
+      function safeInt(value) {
+        if (value === '' || value === null || value === undefined) return null;
+        const n = Number(value);
+        return Number.isInteger(n) && n >= 0 && n <= 999999 ? n : null;
+      }
+      function getWeekDates(iso) {
+        const dow = dayIndex(iso);
+        const mondayOffset = dow === 0 ? -6 : 1 - dow;
+        const monday = addDays(iso, mondayOffset);
+        return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+      }
+      function datesUpTo(iso) {
+        const stop = clampDate(iso);
+        const result = [];
+        for (let d = START; d <= stop; d = addDays(d, 1)) result.push(d);
+        return result;
+      }
+      function metricsFor(dates) {
+        let planned = 0, done = 0, minutes = 0, questions = 0;
+        const bySubject = Object.fromEntries(SUBJECTS.map(s => [s, 0]));
+        dates.forEach(date => {
+          const schedule = SCHEDULES[dayIndex(date)] || [];
+          const record = data.days[date] || { sessions: {}, questions: {} };
+          planned += schedule.length;
+          schedule.forEach((session, i) => {
+            if (record.sessions && record.sessions[i]) { done++; minutes += session[1]; }
+          });
+          SUBJECTS.forEach(subject => {
+            const value = effQ(date, subject, record);
+            if (value !== null) { bySubject[subject] += value; questions += value; }
+          });
+        });
+        return { planned, done, minutes, questions, bySubject };
+      }
+      function setView(which) {
+        ['day', 'timetable', 'timer', 'qs', 'cs', 'progress', 'stats', 'ncert', 'backup'].forEach(v => {
+          const on = v === which;
+          $('view-' + v).classList.toggle('active', on);
+          $('view-' + v).hidden = !on;
+          $('tab-' + v).setAttribute('aria-selected', String(on));
+        });
+        if (which === 'timetable') ttRender();
+        if (which === 'stats') renderStats();
+        if (which === 'timer') renderTimer();
+        if (which === 'qs') renderQs();
+        if (which === 'cs') renderCs();
+        if (which === 'ncert') renderNcert();
+        if (which === 'backup') renderBackup();
+        $('tab-' + which).focus({ preventScroll: true });
+      }
+      function renderWeekStrip() {
+        const dates = getWeekDates(selectedDate);
+        $('week-strip').innerHTML = dates.map(iso => {
+          const d = fromISO(iso), inRange = iso >= START && iso <= END;
+          const current = iso === selectedDate;
+          return `<button class="day-button" type="button" data-date="${iso}" aria-pressed="${current}" ${inRange ? '' : 'disabled'} aria-label="${dateLabel(iso, { weekday: 'long', month: 'long', day: 'numeric' })}"><span class="dow">${SHORT_DAYS[d.getDay()]}</span><span class="dom">${d.getDate()}</span></button>`;
+        }).join('');
+      }
+      function renderSessions() {
+        const schedule = SCHEDULES[dayIndex(selectedDate)] || [];
+        const record = getRecord(selectedDate);
+        const completed = schedule.reduce((n, _, i) => n + (record.sessions[i] ? 1 : 0), 0);
+        $('session-count').textContent = `${completed} / ${schedule.length} done`;
+        $('today-sessions').textContent = `${completed} / ${schedule.length}`;
+        $('today-minutes').textContent = formatMinutes(schedule.reduce((n, session, i) => n + (record.sessions[i] ? session[1] : 0), 0));
+        $('session-list').innerHTML = schedule.map((session, i) => {
+          const [start, minutes, activity, subjects] = session;
+          const done = !!record.sessions[i];
+          const chips = subjects.map(s => `<span class="subject-chip ${subjectClass(s)}">${s}</span>`).join('');
+          return `<div class="session-row ${done ? 'is-done' : ''}"><button class="check-button" type="button" data-session="${i}" aria-label="Mark ${activity} ${subjects.join(' and ')} ${done ? 'not done' : 'done'}" aria-pressed="${done}">${done ? '✓' : ''}</button><div><p class="session-title">${activity}</p><div class="session-meta">${formatTime(start, minutes)} · ${formatMinutes(minutes)}</div></div><div class="subject-list">${chips}</div></div>`;
+        }).join('');
+      }
+      function renderQuestions() {
+        const record = getRecord(selectedDate);
+        $('question-list').innerHTML = SUBJECTS.map(subject => {
+          const value = record.questions[subject] ?? '';
+          return `<label class="question-row ${subjectClass(subject)}"><span class="question-label"><span class="question-dot" aria-hidden="true"></span>${subject}</span><span><span class="sr-only">Number of ${subject} questions solved</span><input class="question-input" type="number" inputmode="numeric" min="0" max="999999" step="1" placeholder="—" data-subject="${subject}" value="${value}"></span></label>`;
+        }).join('');
+        const count = SUBJECTS.reduce((n, subject) => n + (safeInt(record.questions[subject]) ?? 0), 0);
+        $('today-questions').textContent = count.toLocaleString();
+      }
+      function renderDay() {
+        $('date-picker').value = selectedDate;
+        $('date-long').textContent = dateLabel(selectedDate);
+        $('daily-title').textContent = dayIndex(selectedDate) === dayIndex(todayISO()) && selectedDate === clampDate(todayISO()) ? 'Your daily plan' : 'Study plan';
+        $('range-warning').classList.toggle('visible', todayISO() < START || todayISO() > END);
+        renderWeekStrip();
+        renderSessions();
+        renderQuestions();
+      }
+      function renderProgress() {
+        const weekDates = getWeekDates(selectedDate);
+        const visibleWeekDates = weekDates.filter(d => d >= START && d <= selectedDate && d <= END);
+        const week = metricsFor(visibleWeekDates);
+        const percent = week.planned ? Math.round(week.done / week.planned * 100) : 0;
+        $('week-dates').textContent = visibleWeekDates.length ? `${dateLabel(visibleWeekDates[0], { month: 'short', day: 'numeric' })} – ${dateLabel(visibleWeekDates[visibleWeekDates.length - 1], { month: 'short', day: 'numeric' })}` : 'No dates in range';
+        $('week-completion').textContent = `${percent}%`;
+        $('week-session-total').textContent = `${week.done} of ${week.planned} sessions`;
+        $('week-progress-fill').style.width = `${percent}%`;
+        $('week-progressbar').setAttribute('aria-valuenow', String(percent));
+        $('week-time').textContent = `${formatMinutes(week.minutes)} completed`;
+        $('week-questions').textContent = `${week.questions.toLocaleString()} questions`;
+        $('week-days-list').innerHTML = visibleWeekDates.map(date => {
+          const dayMetrics = metricsFor([date]);
+          const percentDay = dayMetrics.planned ? Math.round(dayMetrics.done / dayMetrics.planned * 100) : 0;
+          const label = dateLabel(date, { weekday: 'short', day: 'numeric' });
+          return `<div class="week-day-row"><span class="week-day-label">${label}</span><div class="mini-track" aria-label="${percentDay}% of sessions completed"><div class="mini-fill" style="width:${percentDay}%"></div></div><span class="week-day-count">${dayMetrics.done}/${dayMetrics.planned} · ${dayMetrics.questions} Q</span></div>`;
+        }).join('') || '<div class="empty-state">No study days in this week range.</div>';
+
+        const all = metricsFor(datesUpTo(selectedDate));
+        $('lifetime-period').textContent = `30 Oct 2026 – ${dateLabel(clampDate(selectedDate), { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        $('total-sessions').textContent = all.done.toLocaleString();
+        $('total-minutes').textContent = formatMinutes(all.minutes);
+        $('total-questions').textContent = all.questions.toLocaleString();
+        $('subject-stats').innerHTML = SUBJECTS.map(subject => `<div class="subject-stat"><strong>${subject}</strong><span>${all.bySubject[subject].toLocaleString()} questions</span></div>`).join('');
+      }
+      function renderAll() {
+        renderDay();
+        renderProgress();
+        if ($('view-stats').classList.contains('active')) renderStats();
+        if ($('view-qs').classList.contains('active')) renderQs();
+        if ($('view-cs').classList.contains('active')) renderCs();
+      }
+      function moveDate(delta) {
+        const next = addDays(selectedDate, delta);
+        if (next >= START && next <= END) { selectedDate = next; renderAll(); }
+      }
+      function showMessage(text) {
+        const box = $('status-message');
+        if (box) box.textContent = text;
+      }
+
+      $('tab-day').addEventListener('click', () => setView('day'));
+      $('tab-progress').addEventListener('click', () => { renderProgress(); setView('progress'); });
+      $('previous-day').addEventListener('click', () => moveDate(-1));
+      $('next-day').addEventListener('click', () => moveDate(1));
+      $('go-today').addEventListener('click', () => { selectedDate = clampDate(todayISO()); renderAll(); });
+      $('date-picker').addEventListener('change', event => {
+        if (event.target.value) { selectedDate = clampDate(event.target.value); renderAll(); }
+      });
+      $('week-strip').addEventListener('click', event => {
+        const button = event.target.closest('[data-date]');
+        if (button && !button.disabled) { selectedDate = button.dataset.date; renderAll(); }
+      });
+      $('session-list').addEventListener('click', event => {
+        const button = event.target.closest('[data-session]');
+        if (!button) return;
+        const record = getRecord(selectedDate), index = button.dataset.session;
+        record.sessions[index] = !record.sessions[index];
+        saveData();
+        renderAll();
+      });
+      $('question-list').addEventListener('input', event => {
+        const input = event.target.closest('[data-subject]');
+        if (!input) return;
+        if (input.value !== '' && !input.validity.valid) {
+          input.setCustomValidity('Enter a whole number from 0 to 999999.');
+          input.reportValidity();
+          input.setCustomValidity('');
+          return;
+        }
+        const record = getRecord(selectedDate), subject = input.dataset.subject;
+        if (input.value === '') delete record.questions[subject];
+        else record.questions[subject] = Number(input.value);
+        saveData();
+        renderProgress();
+        const total = SUBJECTS.reduce((n, s) => n + (safeInt(record.questions[s]) ?? 0), 0);
+        $('today-questions').textContent = total.toLocaleString();
+      });
+      $('export-data').addEventListener('click', () => {
+        const payload = { app: 'Study Tracker', version: 2, exportedAt: new Date().toISOString(), schedules: SCHEDULES, dateRange: { start: START, end: END }, days: data.days, ncert: data.ncert, custom: data.custom, sessions: data.sessions, qlog: data.qlog, qtargets: data.qtargets, meta: { remindDays: data.meta.remindDays, edition: data.meta.edition, qDefault: data.meta.qDefault, weakMin: data.meta.weakMin, weakPct: data.meta.weakPct, reviseDays: data.meta.reviseDays, csThr: data.meta.csThr, csGoalDay: data.meta.csGoalDay, csGoalWeek: data.meta.csGoalWeek, csSubj: data.meta.csSubj } };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = `study-tracker-backup-${todayISO()}.json`;
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+        data.meta.lastBackup = new Date().toISOString(); saveData('Backup downloaded. Keep the file somewhere safe (it is not stored in the cloud).'); renderBackup();
+      });
+      $('import-data').addEventListener('click', () => $('import-file').click());
+      
+      function ttMinutes(time) { const [h,m]=time.split(':').map(Number); return h*60+m; }
+      function ttFmt(n) { return formatMinutes(n); }
+      function ttRender() {
+        $('tt-days').innerHTML = DAY_NAMES.slice(1).concat(DAY_NAMES[0]).map((name,i)=>{const d=(i+1)%7; return `<button class="chip" type="button" data-tt-day="${d}" aria-pressed="${ttDay===d}">${name}</button>`}).join('');
+        $('tt-day-title').textContent = DAY_NAMES[ttDay];
+        const list = SCHEDULES[ttDay] || [];
+        $('tt-total').textContent = `${list.length} slots · ${ttFmt(list.reduce((n,x)=>n+x[1],0))} scheduled`;
+        $('tt-slots').innerHTML = list.length ? list.map((x,i)=>`<div class="hrow"><div style="min-width:0;flex:1"><strong>${escTT(x[2])}</strong><div class="subheading">${x[0]}–${ttEnd(x[0],x[1])} · ${ttFmt(x[1])} · ${escTT(x[3].join(', '))}</div></div><div class="acts"><button class="secondary-button" type="button" data-tt-up="${i}" aria-label="Move up" ${i===0?'disabled':''}>↑</button><button class="secondary-button" type="button" data-tt-down="${i}" aria-label="Move down" ${i===list.length-1?'disabled':''}>↓</button><button class="secondary-button" type="button" data-tt-edit="${i}">Edit</button><button class="secondary-button" type="button" data-tt-del="${i}">Delete</button></div></div>`).join('') : '<p class="empty-state">No slots for this day. Add one below.</p>';
+        const conflicts=[]; list.forEach((x,i)=>list.forEach((y,j)=>{if(j>i && ttMinutes(x[0])<ttMinutes(y[0])+y[1] && ttMinutes(y[0])<ttMinutes(x[0])+x[1]) conflicts.push(`${x[2]} overlaps ${y[2]}`)}));
+        $('tt-conflicts').hidden=!conflicts.length; $('tt-conflicts').textContent=conflicts.length?'Overlap warning: '+conflicts.join('; '):'';
+        $('tt-copy-day').innerHTML=DAY_NAMES.map((n,i)=>`<option value="${i}" ${i===((ttDay+1)%7)?'selected':''}>${n}</option>`).join('');
+      }
+      function escTT(v) { return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+      function ttEnd(start,dur) { const n=ttMinutes(start)+dur; return `${String(Math.floor(n/60)%24).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`; }
+      function ttResetForm() { ttEditing=null; $('tt-form').reset(); $('tt-start').value='08:00'; $('tt-end').value='09:00'; $('tt-form-title').textContent='Add a slot'; $('tt-save').textContent='Add slot'; $('tt-cancel').hidden=true; $('tt-duration').textContent='Duration: 1h'; }
+      function ttUpdateDuration() { const a=$('tt-start').value,b=$('tt-end').value; if(!a||!b){$('tt-duration').textContent='Choose start and end times';return;} const m=ttMinutes(b)-ttMinutes(a); $('tt-duration').textContent=m>0?'Duration: '+ttFmt(m):'End time must be after start time (overnight slots are not supported).'; }
+      $('tab-timetable').addEventListener('click',()=>{ttRender();setView('timetable');});
+      $('tt-days').addEventListener('click',e=>{const b=e.target.closest('[data-tt-day]');if(b){ttDay=+b.dataset.ttDay;ttResetForm();ttRender();}});
+      $('tt-add').addEventListener('click',()=>{ttResetForm();$('tt-activity').focus();});
+      $('tt-start').addEventListener('input',ttUpdateDuration); $('tt-end').addEventListener('input',ttUpdateDuration);
+      $('tt-cancel').addEventListener('click',ttResetForm);
+      $('tt-form').addEventListener('submit',e=>{e.preventDefault();const a=$('tt-start').value,b=$('tt-end').value,mins=ttMinutes(b)-ttMinutes(a),activity=$('tt-activity').value.trim(),subject=$('tt-subject').value.trim()||'None';if(!activity||mins<=0||mins>1440){$('tt-status').textContent='Enter an activity and an end time later than the start time.';return;}const slot=[a,mins,activity,[subject]];if(ttEditing===null)SCHEDULES[ttDay].push(slot);else SCHEDULES[ttDay][ttEditing]=slot;SCHEDULES[ttDay].sort((x,y)=>ttMinutes(x[0])-ttMinutes(y[0]));saveTimetable();ttResetForm();ttRender();renderAll();});
+      $('tt-slots').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;let i;if(b.dataset.ttEdit!==undefined){i=+b.dataset.ttEdit;const x=SCHEDULES[ttDay][i];ttEditing=i;$('tt-activity').value=x[2];$('tt-subject').value=x[3].join(', ');$('tt-start').value=x[0];$('tt-end').value=ttEnd(x[0],x[1]);$('tt-form-title').textContent='Edit slot';$('tt-save').textContent='Save changes';$('tt-cancel').hidden=false;ttUpdateDuration();$('tt-activity').focus();return;}if(b.dataset.ttDel!==undefined){i=+b.dataset.ttDel;if(confirm('Delete this timetable slot?')){SCHEDULES[ttDay].splice(i,1);saveTimetable();ttRender();renderAll();}return;}if(b.dataset.ttUp!==undefined||b.dataset.ttDown!==undefined){i=+(b.dataset.ttUp??b.dataset.ttDown);const j=i+(b.dataset.ttUp!==undefined?-1:1);if(j>=0&&j<SCHEDULES[ttDay].length){[SCHEDULES[ttDay][i],SCHEDULES[ttDay][j]]=[SCHEDULES[ttDay][j],SCHEDULES[ttDay][i]];saveTimetable();ttRender();}}});
+      $('tt-copy').addEventListener('click',()=>{const d=+$('tt-copy-day').value;if(d===ttDay){$('tt-status').textContent='Choose a different day.';return;}if(confirm(`Replace ${DAY_NAMES[d]}'s timetable with ${DAY_NAMES[ttDay]}'s slots?`)){SCHEDULES[d]=JSON.parse(JSON.stringify(SCHEDULES[ttDay]));saveTimetable('Schedule copied.');ttRender();renderAll();}});
+      $('tt-reset').addEventListener('click',()=>{if(confirm('Reset only the weekly timetable to its original defaults? Your tracker logs and other data will not be changed.')){SCHEDULES=cleanSchedule(DEFAULT_SCHEDULES);saveTimetable('Timetable reset to defaults.');ttResetForm();ttRender();renderAll();}});
+      $('tt-export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({app:'Study Tracker timetable',version:1,exportedAt:new Date().toISOString(),schedules:SCHEDULES},null,2)],{type:'application/json'});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=`study-timetable-${todayISO()}.json`;a.click();URL.revokeObjectURL(u);$('tt-status').textContent='Timetable backup exported.';});
+      $('tt-import').addEventListener('click',()=>$('tt-file').click());
+      $('tt-file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;try{const p=JSON.parse(await f.text());if(!p||p.version!==1||!p.schedules||!confirm('Import and replace only the weekly timetable? Existing tracker data will remain unchanged.'))return;SCHEDULES=cleanSchedule(p.schedules);saveTimetable('Timetable restored from backup.');ttResetForm();ttRender();renderAll();}catch(_){$('tt-status').textContent='Could not read this timetable backup.';}e.target.value='';});
+      $('tab-timetable').addEventListener('keydown',()=>{});
+
+      // ===== Statistics dashboard (reads the same stored data; nothing is cached) =====
+      const SP = [['day','Daily'],['week','Weekly'],['month','Monthly'],['quarter','Quarterly'],['half','Half-yearly'],['year','Yearly'],['custom','Custom']];
+      const ACT_COL = ['#285f9b', '#ef5b35', '#26744f', '#b0702d', '#7a6a9b'];
+      const SUB_COL = { Maths: '#643b9b', Physics: '#285f9b', Chemistry: '#286b42', 'Full syllabus': '#b0702d' };
+      let sp = 'week', sAnchor = clampDate(todayISO()), cFrom = START, cTo = clampDate(todayISO()), CH = {};
+      const mk = (y, m, d) => toISO(new Date(y, m, d, 12));
+      const fh = m => formatMinutes(Math.round(m));
+      const nf = v => String(Math.round(v * 10) / 10);
+      const daysBetween = (a, b) => Math.round((fromISO(b) - fromISO(a)) / 864e5);
+      function rangeOf(p, a) {
+        const d = fromISO(a), y = d.getFullYear(), m = d.getMonth();
+        if (p === 'day') return [a, a];
+        if (p === 'week') { const w = getWeekDates(a); return [w[0], w[6]]; }
+        if (p === 'month') return [mk(y, m, 1), mk(y, m + 1, 0)];
+        if (p === 'quarter') { const q = Math.floor(m / 3) * 3; return [mk(y, q, 1), mk(y, q + 3, 0)]; }
+        if (p === 'half') { const h = m < 6 ? 0 : 6; return [mk(y, h, 1), mk(y, h + 6, 0)]; }
+        return [mk(y, 0, 1), mk(y, 11, 31)];
+      }
+      function shiftAnchor(p, a, dir) {
+        if (p === 'day') return addDays(a, dir);
+        if (p === 'week') return addDays(a, 7 * dir);
+        const d = fromISO(a), step = { month: 1, quarter: 3, half: 6, year: 12 }[p];
+        return mk(d.getFullYear(), d.getMonth() + step * dir, 1);
+      }
+      function curRange() {
+        if (sp === 'custom') return cFrom <= cTo ? [cFrom, cTo] : [cTo, cFrom];
+        return rangeOf(sp, sAnchor);
+      }
+      function prevRange(r) {
+        if (sp === 'custom') { const n = daysBetween(r[0], r[1]) + 1; return [addDays(r[0], -n), addDays(r[0], -1)]; }
+        return rangeOf(sp, shiftAnchor(sp, sAnchor, -1));
+      }
+      function titleFor(p, r) {
+        const d = fromISO(r[0]);
+        if (p === 'day') return dateLabel(r[0]);
+        if (p === 'month') return dateLabel(r[0], { month: 'long', year: 'numeric' });
+        if (p === 'quarter') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
+        if (p === 'half') return `H${d.getMonth() < 6 ? 1 : 2} ${d.getFullYear()}`;
+        if (p === 'year') return String(d.getFullYear());
+        return `${dateLabel(r[0], { day: 'numeric', month: 'short' })} – ${dateLabel(r[1], { day: 'numeric', month: 'short', year: 'numeric' })}`;
+      }
+      // Only days up to today (and inside the plan) count, so future sessions are never "pending".
+      function computeStats(r) {
+        const first = r[0] > START ? r[0] : START, last = [r[1], END, todayISO()].sort()[0];
+        const days = [], cat = {}, sub = {};
+        let planned = 0, done = 0, min = 0, pmin = 0, q = 0;
+        for (let d = first; d <= last; d = addDays(d, 1)) {
+          const sch = SCHEDULES[dayIndex(d)] || [], rec = data.days[d] || {}, ss = rec.sessions || {};
+          const o = { date: d, min: 0, pmin: 0, planned: sch.length, done: 0, q: 0, qs: [] };
+          sch.forEach((s, i) => {
+            o.pmin += s[1];
+            if (ss[i]) {
+              o.done++; o.min += s[1];
+              const c = s[2].replace(/\s*\d+$/, '');
+              cat[c] = (cat[c] || 0) + s[1];
+              s[3].forEach(x => { sub[x] = (sub[x] || 0) + s[1] / s[3].length; });
+            }
+          });
+          SUBJECTS.forEach(k => { const v = effQ(d, k, rec) ?? 0; o.qs.push(v); o.q += v; });
+          days.push(o); planned += o.planned; done += o.done; min += o.min; pmin += o.pmin; q += o.q;
+        }
+        return { days, cat, sub, planned, done, min, pmin, q, pend: planned - done };
+      }
+      function buckets(days) {
+        const n = days.length, mode = n <= 31 ? 'd' : n <= 120 ? 'w' : 'm', map = new Map();
+        days.forEach(o => {
+          const k = mode === 'd' ? o.date : mode === 'w' ? getWeekDates(o.date)[0] : o.date.slice(0, 7);
+          let b = map.get(k);
+          if (!b) { b = { k, min: 0, pmin: 0, done: 0, planned: 0, q: 0, act: 0, n: 0 }; map.set(k, b); }
+          b.min += o.min; b.pmin += o.pmin; b.done += o.done; b.planned += o.planned; b.q += o.q; b.n++;
+          if (o.done) b.act++;
+        });
+        return [...map.values()].map(b => {
+          const dt = b.k.length === 7 ? b.k + '-01' : b.k;
+          b.label = mode === 'm' ? dateLabel(dt, { month: 'short' }) : mode === 'w' ? dateLabel(dt, { day: 'numeric', month: 'short' }) : (n <= 7 ? dateLabel(dt, { weekday: 'short' }) : dateLabel(dt, { day: 'numeric' }));
+          b.full = mode === 'm' ? dateLabel(dt, { month: 'long', year: 'numeric' }) : mode === 'w' ? 'Week of ' + dateLabel(dt, { day: 'numeric', month: 'short' }) : dateLabel(dt, { weekday: 'short', day: 'numeric', month: 'short' });
+          return b;
+        });
+      }
+      function niceMax(v) {
+        if (v <= 0) return 1;
+        const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p;
+        return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+      }
+      function axis(max, fmt) {
+        let s = '';
+        for (let i = 0; i <= 3; i++) {
+          const y = 166 - 156 * i / 3;
+          s += `<line x1="34" x2="312" y1="${y}" y2="${y}" class="gl"/><text x="30" y="${y + 4}" text-anchor="end" class="at">${fmt(max * i / 3)}</text>`;
+        }
+        return s;
+      }
+      function xl(labels, i, n, x) {
+        return i % Math.ceil(n / 7) === 0 ? `<text x="${x}" y="184" text-anchor="middle" class="at">${labels[i]}</text>` : '';
+      }
+      function barChart(id, labels, series, tips, fmt) {
+        const n = labels.length, max = niceMax(Math.max(0, ...series.flatMap(s => s.v))), cw = 278 / n, bw = Math.min(28, cw * .7 / series.length);
+        CH[id] = tips;
+        let s = axis(max, fmt);
+        labels.forEach((l, i) => {
+          const cx = 34 + cw * i + cw / 2;
+          series.forEach((se, j) => {
+            const h = 156 * se.v[i] / max;
+            s += `<rect x="${(cx - bw * series.length / 2 + bw * j).toFixed(1)}" y="${(166 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" style="fill:${se.c}"/>`;
+          });
+          s += xl(labels, i, n, cx) + `<rect data-c="${id}" data-i="${i}" x="${(34 + cw * i).toFixed(1)}" y="10" width="${cw.toFixed(1)}" height="156" class="hit"/>`;
+        });
+        return `<svg viewBox="0 0 320 190" role="img">${s}</svg>`;
+      }
+      function lineChart(id, labels, v, c, tips, fmt, fixedMax) {
+        const n = labels.length, max = fixedMax || niceMax(Math.max(0, ...v)), step = n > 1 ? 278 / (n - 1) : 0;
+        const px = i => n > 1 ? 34 + step * i : 173, py = x => 166 - 156 * x / max;
+        CH[id] = tips;
+        let s = axis(max, fmt);
+        s += `<polyline points="${v.map((x, i) => `${px(i).toFixed(1)},${py(x).toFixed(1)}`).join(' ')}" fill="none" style="stroke:${c}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+        v.forEach((x, i) => {
+          if (n <= 31) s += `<circle cx="${px(i).toFixed(1)}" cy="${py(x).toFixed(1)}" r="3.5" style="fill:${c}"/>`;
+          const w = Math.max(step, 16);
+          s += xl(labels, i, n, px(i)) + `<rect data-c="${id}" data-i="${i}" x="${(px(i) - w / 2).toFixed(1)}" y="10" width="${w.toFixed(1)}" height="156" class="hit"/>`;
+        });
+        return `<svg viewBox="0 0 320 190" role="img">${s}</svg>`;
+      }
+      function donut(id, items, fmt) {
+        items = items.filter(x => x.v > 0);
+        const tot = items.reduce((a, b) => a + b.v, 0);
+        if (!tot) return '<div class="empty-state">No data in this period.</div>';
+        const pc = x => Math.round(x / tot * 100), C = 2 * Math.PI * 40;
+        CH[id] = items.map(x => `${x.l}: ${fmt(x.v)} (${pc(x.v)}%)`);
+        let off = 0, arcs = '';
+        items.forEach((x, i) => {
+          const len = C * x.v / tot;
+          arcs += `<circle data-c="${id}" data-i="${i}" cx="60" cy="60" r="40" fill="none" stroke-width="20" style="stroke:${x.c}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 60 60)"/>`;
+          off += len;
+        });
+        const leg = items.map((x, i) => `<button type="button" class="lg" data-c="${id}" data-i="${i}"><i style="background:${x.c}"></i><span>${x.l}</span><b>${pc(x.v)}%</b></button>`).join('');
+        return `<div class="donut"><svg viewBox="0 0 120 120" role="img">${arcs}<text x="60" y="64" text-anchor="middle" class="ct">${fmt(tot)}</text></svg><div class="legend">${leg}</div></div>`;
+      }
+      const box = (id, title, body, note) => `<section class="card card-pad"><h2>${title}</h2>${note ? `<div class="subheading">${note}</div>` : ''}${body}<div class="tip" id="tip-${id}">Tap a chart element for details.</div></section>`;
+      function delta(a, b) {
+        if (!a && !b) return '—';
+        if (!b) return 'New';
+        const c = Math.round((a - b) / b * 100);
+        return (c > 0 ? '+' : c < 0 ? '−' : '') + Math.abs(c) + '%';
+      }
+      function renderStats() {
+        const r = curRange(), pr = prevRange(r), s = computeStats(r), p = computeStats(pr), bk = buckets(s.days), today = todayISO();
+        CH = {};
+        $('stats-periods').innerHTML = SP.map(([k, l]) => `<button type="button" class="chip" data-p="${k}" aria-pressed="${k === sp}">${l}</button>`).join('');
+        $('stats-label').textContent = titleFor(sp, r);
+        $('stats-prev').hidden = $('stats-next').hidden = sp === 'custom';
+        $('stats-custom').hidden = sp !== 'custom';
+        $('stats-from').value = cFrom; $('stats-to').value = cTo;
+        const act = s.days.filter(o => o.done).length, pact = p.days.filter(o => o.done).length;
+        const pct = s.planned ? Math.round(s.done / s.planned * 100) : 0, pp = p.planned ? Math.round(p.done / p.planned * 100) : 0;
+        const cats = Object.entries(s.cat).sort((a, b) => b[1] - a[1]);
+        const best = s.days.reduce((a, o) => o.min > (a ? a.min : 0) ? o : a, null);
+        const card = (l, v, n) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}</div><div class="metric-note">${n}</div></div>`;
+        let h = '';
+        if (!s.planned) h += '<div class="notice">Nothing to show yet: this period starts in the future or falls outside your plan (30 Oct 2026 – 31 May 2028). Pick an earlier period.</div>';
+        else if (!s.done && !s.q) h += '<div class="notice">Nothing tracked in this period yet. Tick sessions and log questions in Daily plan, and these charts will fill in.</div>';
+        h += '<div class="sgrid">' +
+          card('Total tracked time', fh(s.min), `of ${fh(s.pmin)} planned`) +
+          card('Average per day', s.days.length ? fh(s.min / s.days.length) : '—', `over ${s.days.length} day${s.days.length === 1 ? '' : 's'}`) +
+          card('Most-used category', cats.length ? cats[0][0] : '—', cats.length ? fh(cats[0][1]) : 'no data') +
+          card('Most productive day', best ? dateLabel(best.date, { weekday: 'short', day: 'numeric', month: 'short' }) : '—', best ? fh(best.min) : 'no data') +
+          card('Tasks completed', `${s.done}/${s.planned}`, `${s.pend} pending`) +
+          card('Goal completion', pct + '%', 'sessions done ÷ planned') +
+          card('Change vs previous', delta(s.min, p.min), 'tracked time') +
+          card('Active days', `${act}/${s.days.length}`, 'with 1+ session done') + '</div>';
+        const L = bk.map(b => b.label), full = bk.map(b => b.full);
+        const acc = '#ef5b35';
+        const actItems = cats.map(([l, v], i) => ({ l, v, c: ACT_COL[i % 5] }));
+        const subItems = Object.entries(s.sub).sort((a, b) => b[1] - a[1]).map(([l, v]) => ({ l, v, c: SUB_COL[l] || '#7a6a9b' }));
+        const short = l => l.length > 9 ? l.slice(0, 8) + '…' : l;
+        h += '<div class="chart-grid">';
+        h += box('p1', 'Time by activity', donut('p1', actItems, fh));
+        h += box('p2', 'Time by subject', donut('p2', subItems, fh));
+        h += box('p3', 'Completed vs pending', donut('p3', [{ l: 'Completed', v: s.done, c: '#26744f' }, { l: 'Pending', v: s.pend, c: '#d3c9bf' }], String), 'Sessions planned up to today');
+        h += box('b1', 'Planned vs actual time', barChart('b1', L, [{ c: '#d3c9bf', v: bk.map(b => b.pmin / 60) }, { c: acc, v: bk.map(b => b.min / 60) }], bk.map(b => `${b.full}: ${fh(b.min)} of ${fh(b.pmin)} planned`), v => nf(v) + 'h') + '<div class="key"><span><i style="background:#d3c9bf"></i>Planned</span><span><i style="background:#ef5b35"></i>Actual</span></div>');
+        h += box('b2', 'Tasks completed', barChart('b2', L, [{ c: '#26744f', v: bk.map(b => b.done) }], bk.map(b => `${b.full}: ${b.done} of ${b.planned} sessions`), nf));
+        h += box('b3', 'Time by category', barChart('b3', cats.map(c => short(c[0])), [{ c: '#285f9b', v: cats.map(c => c[1] / 60) }], cats.map(c => `${c[0]}: ${fh(c[1])}`), v => nf(v) + 'h'));
+        h += box('b4', 'Subject-wise study hours', barChart('b4', subItems.map(x => short(x.l)), [{ c: '#643b9b', v: subItems.map(x => x.v / 60) }], subItems.map(x => `${x.l}: ${fh(x.v)}`), v => nf(v) + 'h'), 'Shared sessions are split equally');
+        h += box('l1', 'Tracked hours trend', lineChart('l1', L, bk.map(b => b.min / 60), acc, bk.map(b => `${b.full}: ${fh(b.min)}`), v => nf(v) + 'h'));
+        h += box('l2', 'Productivity: goal completion', lineChart('l2', L, bk.map(b => b.planned ? Math.round(b.done / b.planned * 100) : 0), '#26744f', bk.map(b => `${b.full}: ${b.planned ? Math.round(b.done / b.planned * 100) : 0}% (${b.done}/${b.planned})`), v => Math.round(v) + '%', 100));
+        h += box('l3', 'Study consistency', lineChart('l3', L, bk.map(b => b.n ? Math.round(b.act / b.n * 100) : 0), '#643b9b', bk.map(b => `${b.full}: ${b.act} of ${b.n} days active`), v => Math.round(v) + '%', 100), 'Share of days with at least one session done');
+        h += box('l4', 'Questions solved', lineChart('l4', L, bk.map(b => b.q), '#b0702d', bk.map(b => `${b.full}: ${b.q.toLocaleString()} questions`), nf));
+        const cmp = [['Tracked time', s.min, p.min, fh], ['Sessions done', s.done, p.done, String], ['Goal completion', pct, pp, v => v + '%'], ['Questions solved', s.q, p.q, String], ['Active days', act, pact, String]];
+        const cbody = cmp.map(([l, a, b, f]) => { const m = Math.max(a, b, 1); return `<div class="cmp"><div class="cmp-h"><span>${l}</span><b>${delta(a, b)}</b></div><div class="cmp-b"><span style="width:${a / m * 100}%"></span></div><div class="cmp-b prev"><span style="width:${b / m * 100}%"></span></div><div class="cmp-t">This period ${f(a)} · Previous ${f(b)}</div></div>`; }).join('');
+        h += box('c1', 'Compared with ' + titleFor(sp, pr), cbody, r[1] > today ? 'This period is still in progress, so the comparison favours the previous one.' : '');
+        h += '</div><p class="footnote">Goal completion counts sessions on days up to today. Sessions belong to the day they start (none run past midnight). Break time isn\'t tracked in this app, so there is no productive-vs-break chart.</p>';
+        $('stats-root').innerHTML = h;
+      }
+      function stepStats(dir) {
+        const na = shiftAnchor(sp, sAnchor, dir), nr = rangeOf(sp, na);
+        if (nr[1] < START || nr[0] > END) return;
+        sAnchor = na; renderStats();
+      }
+      $('tab-stats').addEventListener('click', () => setView('stats'));
+      $('stats-periods').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { sp = b.dataset.p; renderStats(); } });
+      $('stats-prev').addEventListener('click', () => stepStats(-1));
+      $('stats-next').addEventListener('click', () => stepStats(1));
+      $('stats-from').addEventListener('change', e => { if (e.target.value) { cFrom = e.target.value; renderStats(); } });
+      $('stats-to').addEventListener('change', e => { if (e.target.value) { cTo = e.target.value; renderStats(); } });
+      $('stats-root').addEventListener('click', e => {
+        const t = e.target.closest('[data-c]');
+        if (!t) return;
+        const id = t.dataset.c, tip = $('tip-' + id);
+        if (tip && CH[id]) tip.textContent = CH[id][+t.dataset.i];
+        document.querySelectorAll(`[data-c="${id}"].sel`).forEach(x => x.classList.remove('sel'));
+        t.classList.add('sel');
+      });
+      $('stats-csv').addEventListener('click', () => {
+        const r = curRange(), s = computeStats(r);
+        const rows = [['Date', 'Planned sessions', 'Completed sessions', 'Planned minutes', 'Tracked minutes', ...SUBJECTS.map(x => x + ' questions')]];
+        s.days.forEach(o => rows.push([o.date, o.planned, o.done, o.pmin, o.min, ...o.qs]));
+        const blob = new Blob([rows.map(x => x.join(',')).join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob), link = document.createElement('a');
+        link.href = url; link.download = `study-stats-${r[0]}_to_${r[1]}.csv`;
+        document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      });
+
+      // ===== Phase 1: data protection + NCERT chapter tracker =====
+      const NC = [
+        ['c11p','Class 11 Physics',['Units and Measurements','Motion in a Straight Line','Motion in a Plane','Laws of Motion','Work, Energy and Power','System of Particles and Rotational Motion','Gravitation','Mechanical Properties of Solids','Mechanical Properties of Fluids','Thermal Properties of Matter','Thermodynamics','Kinetic Theory','Oscillations','Waves']],
+        ['c11c','Class 11 Chemistry',['Some Basic Concepts of Chemistry','Structure of Atom','Classification of Elements and Periodicity in Properties','Chemical Bonding and Molecular Structure','Thermodynamics','Equilibrium','Redox Reactions','Organic Chemistry – Some Basic Principles and Techniques','Hydrocarbons']],
+        ['c11m','Class 11 Mathematics',['Sets','Relations and Functions','Trigonometric Functions','Complex Numbers and Quadratic Equations','Linear Inequalities','Permutations and Combinations','Binomial Theorem','Sequences and Series','Straight Lines','Conic Sections','Introduction to Three Dimensional Geometry','Limits and Derivatives','Statistics','Probability']],
+        ['c12p','Class 12 Physics',['Electric Charges and Fields','Electrostatic Potential and Capacitance','Current Electricity','Moving Charges and Magnetism','Magnetism and Matter','Electromagnetic Induction','Alternating Current','Electromagnetic Waves','Ray Optics and Optical Instruments','Wave Optics','Dual Nature of Radiation and Matter','Atoms','Nuclei','Semiconductor Electronics: Materials, Devices and Simple Circuits']],
+        ['c12c','Class 12 Chemistry',['Solutions','Electrochemistry','Chemical Kinetics','The d- and f-Block Elements','Coordination Compounds','Haloalkanes and Haloarenes','Alcohols, Phenols and Ethers','Aldehydes, Ketones and Carboxylic Acids','Amines','Biomolecules']],
+        ['c12m','Class 12 Mathematics',['Relations and Functions','Inverse Trigonometric Functions','Matrices','Determinants','Continuity and Differentiability','Application of Derivatives','Integrals','Application of Integrals','Differential Equations','Vector Algebra','Three Dimensional Geometry','Linear Programming','Probability']]
+      ];
+      const NCIDS = new Set(NC.flatMap(g => g[2].map((_, i) => g[0] + (i + 1))));
+      const GIDS = NC.map(g => g[0]);
+      const NCF = [['m','Mastered'],['l','Lecture done'],['e','NCERT exercises done'],['p','Module practice done'],['y','PYQs done'],['r','Revised']];
+      let ncFilter = 'all', ncQuery = '', ncOpen = new Set(GIDS.map(g => 'g:' + g)), pending = null;
+      function fresh() { return { version: 2, days: {}, ncert: {}, custom: [], sessions: [], timer: null, qlog: [], qtargets: {}, meta: { lastBackup: null, remindDays: 7, edition: 'current', qDefault: 0, weakMin: 20, weakPct: 60, reviseDays: 14, csThr: 60, csGoalDay: 240, csGoalWeek: 1440, csSubj: 30 } }; }
+      function norm(p) {
+        const d = fresh(); d.days = p.days;
+        if (p.ncert && typeof p.ncert === 'object') d.ncert = p.ncert;
+        if (Array.isArray(p.custom)) d.custom = p.custom;
+        if (Array.isArray(p.sessions)) d.sessions = p.sessions;
+        if (Array.isArray(p.qlog)) d.qlog = p.qlog;
+        if (p.qtargets && typeof p.qtargets === 'object' && !Array.isArray(p.qtargets)) d.qtargets = p.qtargets;
+        if (p.timer && typeof p.timer === 'object' && typeof p.timer.start === 'number') d.timer = p.timer;
+        if (p.meta && typeof p.meta === 'object') Object.assign(d.meta, p.meta);
+        return d;
+      }
+      function warnSave(bad) {
+        const w = $('save-warning'); if (!w) return;
+        w.hidden = !bad;
+        if (bad) w.textContent = 'This browser cannot save your data (storage blocked or full). Changes will be lost when you close the app. Export a backup now.';
+      }
+      function makeRestorePoint(label) {
+        try { localStorage.setItem('study-tracker-restore-v1', JSON.stringify({ at: new Date().toISOString(), label, data })); return true; } catch (_) { return false; }
+      }
+      function readRP() { try { return JSON.parse(localStorage.getItem('study-tracker-restore-v1')); } catch (_) { return null; } }
+      function validateImport(p) {
+        if (!p || typeof p !== 'object' || Array.isArray(p) || (p.app && p.app !== 'Study Tracker') || ![1, 2].includes(p.version) || !p.days || typeof p.days !== 'object' || Array.isArray(p.days)) return { error: 'This is not a Study Tracker backup (missing or unsupported version, or no day records).' };
+        const out = fresh(); let bad = 0;
+        for (const [date, rec] of Object.entries(p.days)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < START || date > END || !rec || typeof rec !== 'object') { bad++; continue; }
+          const n = (SCHEDULES[dayIndex(date)] || []).length, sessions = {}, questions = {};
+          for (let i = 0; i < n; i++) sessions[i] = !!(rec.sessions && rec.sessions[i]);
+          SUBJECTS.forEach(s => {
+            const raw = rec.questions && rec.questions[s];
+            if (raw === undefined || raw === null || raw === '') return;
+            const v = safeInt(raw); if (v === null) bad++; else questions[s] = v;
+          });
+          out.days[date] = { sessions, questions };
+        }
+        const cids = new Set();
+        (Array.isArray(p.custom) ? p.custom : []).forEach(c => {
+          if (c && typeof c.id === 'string' && /^x\w{1,20}$/.test(c.id) && !cids.has(c.id) && GIDS.includes(c.g) && typeof c.name === 'string' && c.name.trim() && c.name.length <= 80) { out.custom.push({ id: c.id, g: c.g, name: c.name.trim() }); cids.add(c.id); } else bad++;
+        });
+        for (const [id, v] of Object.entries(p.ncert && typeof p.ncert === 'object' ? p.ncert : {})) {
+          if (!(NCIDS.has(id) || cids.has(id)) || !v || typeof v !== 'object') { bad++; continue; }
+          out.ncert[id] = { c: !!v.c }; NCF.forEach(([k]) => { out.ncert[id][k] = !!v[k]; });
+        }
+        const ids = new Set();
+        (Array.isArray(p.sessions) ? p.sessions : []).forEach(s => {
+          if (s && typeof s.id === 'string' && /^s\w{3,30}$/.test(s.id) && !ids.has(s.id) && /^\d{4}-\d{2}-\d{2}$/.test(s.date) && s.date >= START && s.date <= END && TSUBJ.includes(s.subject) && ACTS.includes(s.activity) && Number.isInteger(s.minutes) && s.minutes >= 1 && s.minutes <= 1440 && typeof s.start === 'number' && typeof s.end === 'number') {
+            ids.add(s.id); out.sessions.push({ id: s.id, date: s.date, subject: s.subject, activity: s.activity, chapter: typeof s.chapter === 'string' ? s.chapter.slice(0, 20) : '', chLabel: typeof s.chLabel === 'string' ? s.chLabel.slice(0, 100) : '', minutes: s.minutes, paused: Number.isInteger(s.paused) && s.paused >= 0 ? s.paused : 0, start: s.start, end: s.end });
+          } else bad++;
+        });
+        const qids = new Set(), qn = v => Number.isInteger(v) && v >= 0 && v <= 9999;
+        (Array.isArray(p.qlog) ? p.qlog : []).forEach(e => {
+          if (e && typeof e.id === 'string' && /^q\w{3,30}$/.test(e.id) && !qids.has(e.id) && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && e.date >= START && e.date <= END && typeof e.ch === 'string' && e.ch.length <= 20 && (NCIDS.has(e.ch) || cids.has(e.ch) || typeof e.chl === 'string') && ['11', '12'].includes(e.cls) && SUBJECTS.includes(e.sub) && QSRC.includes(e.src) && qn(e.cor) && qn(e.inc) && qn(e.skp) && e.cor + e.inc + e.skp > 0) {
+            qids.add(e.id); out.qlog.push({ id: e.id, date: e.date, ch: e.ch, cls: e.cls, sub: e.sub, chl: typeof e.chl === 'string' ? e.chl.slice(0, 120) : '', src: e.src, cor: e.cor, inc: e.inc, skp: e.skp, retry: !!e.retry });
+          } else bad++;
+        });
+        for (const [id, v] of Object.entries(p.qtargets && typeof p.qtargets === 'object' && !Array.isArray(p.qtargets) ? p.qtargets : {})) {
+          if ((NCIDS.has(id) || cids.has(id)) && Number.isInteger(v) && v >= 0 && v <= 99999) out.qtargets[id] = v; else bad++;
+        }
+        const m = p.meta || {};
+        [['qDefault', 0, 99999], ['weakMin', 1, 9999], ['weakPct', 1, 100], ['reviseDays', 1, 365], ['csThr', 1, 1440], ['csGoalDay', 1, 1440], ['csGoalWeek', 1, 10080], ['csSubj', 1, 1440]].forEach(([k, lo, hi]) => { if (Number.isInteger(m[k]) && m[k] >= lo && m[k] <= hi) out.meta[k] = m[k]; });
+        if (Number.isInteger(m.remindDays) && m.remindDays >= 0 && m.remindDays <= 365) out.meta.remindDays = m.remindDays;
+        if (m.edition === 'new' || m.edition === 'current') out.meta.edition = m.edition;
+        return { data: out, bad };
+      }
+      function mergeData(base, inc) {
+        const o = JSON.parse(JSON.stringify(base));
+        for (const [d, r] of Object.entries(inc.days)) {
+          const t = o.days[d] || (o.days[d] = { sessions: {}, questions: {} });
+          t.sessions = t.sessions || {}; t.questions = t.questions || {};
+          for (const [i, v] of Object.entries(r.sessions)) t.sessions[i] = !!t.sessions[i] || v;
+          for (const [s, v] of Object.entries(r.questions)) if (t.questions[s] === undefined) t.questions[s] = v;
+        }
+        for (const [id, v] of Object.entries(inc.ncert)) { const t = o.ncert[id] || (o.ncert[id] = {}); ['c', ...NCF.map(x => x[0])].forEach(k => { t[k] = !!t[k] || !!v[k]; }); }
+        inc.qlog.forEach(e => { if (!o.qlog.some(x => x.id === e.id)) o.qlog.push(e); });
+        for (const [id, v] of Object.entries(inc.qtargets)) if (o.qtargets[id] === undefined) o.qtargets[id] = v;
+        inc.sessions.forEach(s => { if (!o.sessions.some(x => x.id === s.id)) o.sessions.push(s); });
+        inc.custom.forEach(c => { if (!o.custom.some(x => x.id === c.id)) o.custom.push(c); });
+        return o;
+      }
+      function renderBackup() {
+        const lb = data.meta.lastBackup, age = lb ? Math.floor((Date.now() - new Date(lb)) / 864e5) : null;
+        const hasData = Object.keys(data.days).length > 0 || Object.keys(data.ncert).length > 0;
+        $('bk-last').textContent = lb ? `Last backup: ${new Date(lb).toLocaleString()} (${age === 0 ? 'today' : age + ' day(s) ago'}).` : 'No backup exported from this browser yet.';
+        $('bk-days').value = String(data.meta.remindDays);
+        const protectedOK = (() => { try { return !!localStorage.getItem(DB_KEY); } catch (_) { return false; } })();
+        $('bk-protection').textContent = protectedOK ? 'Storage: local browser only · automatic last-good and daily snapshots enabled when space allows · imports are validated before changes.' : 'Storage warning: this browser cannot confirm local persistence. Export a JSON backup and check browser storage settings.';
+        const due = data.meta.remindDays > 0 && hasData && (lb === null || age >= data.meta.remindDays);
+        $('backup-reminder').hidden = !due;
+        $('backup-reminder').textContent = due ? (lb ? `It has been ${age} days since your last backup. Open the Backup tab and export one.` : 'You have not exported a backup yet. Open the Backup tab and export one.') : '';
+        const rp = readRP();
+        $('rp-info').textContent = rp ? `${rp.label} — saved ${new Date(rp.at).toLocaleString()}.` : 'No restore point yet. One is created automatically before an upgrade, a replace-import, a checklist reset or a restore.';
+        $('rp-restore').disabled = !rp;
+      }
+      function afterDataChange(msg) { saveData(msg); renderAll(); renderBackup(); renderNcert(); renderTimer(); renderQs(); renderCs(); }
+      $('bk-export').addEventListener('click', () => $('export-data').click());
+      $('bk-import').addEventListener('click', () => $('import-file').click());
+      $('bk-days').addEventListener('change', e => { data.meta.remindDays = Number(e.target.value); saveData('Reminder setting saved.'); renderBackup(); });
+      $('import-file').addEventListener('change', async event => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        setView('backup');
+        try {
+          if (file.size > MAX_IMPORT_BYTES) throw new Error('This file is too large to import safely (8 MB maximum). Nothing was changed.');
+          const v = validateImport(JSON.parse(await file.text()));
+          if (v.error) throw new Error(v.error);
+          pending = v.data;
+          $('imp-info').textContent = `File contains ${Object.keys(v.data.days).length} day record(s), ${Object.values(v.data.ncert).filter(x => x.c).length} completed chapter(s) and ${v.data.custom.length} custom chapter(s).` + (v.bad ? ` ${v.bad} invalid entr${v.bad === 1 ? 'y was' : 'ies were'} skipped.` : '') + ' Nothing has been changed yet.';
+          $('import-panel').hidden = false;
+        } catch (error) { pending = null; $('import-panel').hidden = true; showMessage(error.message || 'Could not read that file. Nothing was changed.'); $('rp-info').textContent = error.message || 'Could not read that file. Nothing was changed.'; }
+        finally { event.target.value = ''; }
+      });
+      $('imp-cancel').addEventListener('click', () => { pending = null; $('import-panel').hidden = true; });
+      function doImport(replace) {
+        if (!pending) return;
+        if (replace && !window.confirm('Replace ALL data in this browser with the file? A restore point is saved first.')) return;
+        if (!makeRestorePoint(replace ? 'Before replace-import' : 'Before merge-import')) { $('rp-info').textContent = 'Could not save a restore point (storage full), so the import was cancelled. Export a backup first.'; return; }
+        const lb = data.meta.lastBackup, tm = data.timer;
+        data = replace ? pending : mergeData(data, pending);
+        data.timer = tm;
+        if (replace) data.meta.lastBackup = lb; else data.meta = Object.assign({}, data.meta);
+        pending = null; $('import-panel').hidden = true;
+        afterDataChange(replace ? 'Backup imported (replaced).' : 'Backup merged.');
+      }
+      $('imp-merge').addEventListener('click', () => doImport(false));
+      $('imp-replace').addEventListener('click', () => doImport(true));
+      $('rp-restore').addEventListener('click', () => {
+        const rp = readRP(); if (!rp || !rp.data) return;
+        if (!window.confirm('Restore the saved restore point? Your current data becomes the new restore point.')) return;
+        const cur = data; data = norm(rp.data); data.timer = cur.timer;
+        try { localStorage.setItem('study-tracker-restore-v1', JSON.stringify({ at: new Date().toISOString(), label: 'Before restoring a restore point', data: cur })); } catch (_) {}
+        afterDataChange('Restore point restored.');
+      });
+
+      $('bk-reset').addEventListener('click', () => {
+        if (!window.confirm('Reset ALL Study Tracker data on this device, including daily logs, question logs, chapter progress and settings? This cannot be undone unless a backup exists.')) return;
+        if (!window.confirm('Final confirmation: download a JSON backup first if you need to keep anything. Continue with full reset?')) return;
+        if (!makeRestorePoint('Before full data reset')) { window.alert('Could not save a restore point. Reset cancelled to protect your data. Export a backup and free storage first.'); return; }
+        const clean = fresh();
+        data = clean;
+        if (!saveData('All tracker data reset. A restore point is available in Backup.')) { window.alert('The reset could not be saved. Your browser may be out of storage.'); return; }
+        renderAll(); renderBackup(); renderNcert(); renderTimer(); renderQs(); renderCs();
+      });
+
+      function ncSt(id) { return data.ncert[id] || (data.ncert[id] = { c: false }); }
+      function ncGroups() { return NC.map(g => ({ id: g[0], title: g[1], rows: [...g[2].map((n, i) => ({ id: g[0] + (i + 1), name: n })), ...data.custom.filter(c => c.g === g[0]).map(c => ({ id: c.id, name: c.name, custom: true }))] })); }
+      function renderNcert() {
+        const root = $('nc-root'); if (!root) return;
+        const gs = ncGroups(), isDone = r => !!(data.ncert[r.id] && data.ncert[r.id].c);
+        const tot = gs.reduce((a, g) => a + g.rows.length, 0), done = gs.reduce((a, g) => a + g.rows.filter(isDone).length, 0);
+        $('nc-basis').textContent = 'Chapter lists follow the NCERT textbooks in use for 2026–27 (existing rationalized books).';
+        const q = ncQuery.trim().toLowerCase(), pc = (d, t) => t ? Math.round(d / t * 100) : 0;
+        let h = `<div class="notice" ${data.meta.edition === 'new' ? '' : 'hidden'}>You marked your textbooks as the new NCF-based edition, but this checklist follows the older rationalized books. Chapter names and order may differ, so progress may not map one-to-one.</div>`;
+        h += `<section class="card card-pad"><h2>Overall PCM: ${pc(done, tot)}%</h2><div class="subheading">${done} completed · ${tot - done} remaining · ${tot} chapters</div><div class="progress-track" style="margin-top:8px"><div class="progress-fill" style="width:${pc(done, tot)}%"></div></div>
+          <div class="row-actions"><input class="tinput" id="nc-q" type="search" placeholder="Search chapters" aria-label="Search chapters" value="${esc(ncQuery)}">
+          ${[['all','All'],['done','Completed'],['todo','Remaining']].map(([k, l]) => `<button type="button" class="chip" data-f="${k}" aria-pressed="${ncFilter === k}">${l}</button>`).join('')}</div>
+          <label class="subheading">Textbook edition I use: <select id="nc-ed" class="tinput" style="flex:none;width:auto"><option value="current">Existing rationalized (2026–27)</option><option value="new">New NCF-based edition</option></select></label></section>`;
+        gs.forEach(g => {
+          const d = g.rows.filter(isDone).length;
+          const rows = g.rows.filter(r => (!q || r.name.toLowerCase().includes(q)) && (ncFilter === 'all' || (ncFilter === 'done') === isDone(r)));
+          h += `<details class="grp card card-pad" data-k="g:${g.id}" ${ncOpen.has('g:' + g.id) ? 'open' : ''}><summary>${g.title}<span class="subheading">${d}/${g.rows.length} done · ${pc(d, g.rows.length)}% · ${g.rows.length - d} remaining</span></summary>`;
+          h += rows.map(r => { const s = data.ncert[r.id] || {};
+            return `<label class="ncr"><input type="checkbox" data-id="${r.id}" data-f="c" ${s.c ? 'checked' : ''}><span>${esc(r.name)}${r.custom ? ' <em class="subheading">(custom)</em>' : ''}</span></label><details class="ncd" data-k="r:${r.id}" ${ncOpen.has('r:' + r.id) ? 'open' : ''}><summary>Mastery and study steps</summary>${NCF.map(([k, l]) => `<label class="ncf"><input type="checkbox" data-id="${r.id}" data-f="${k}" ${s[k] ? 'checked' : ''}>${l}</label>`).join('')}${r.custom ? `<button class="secondary-button" type="button" data-del="${r.id}">Delete custom chapter</button>` : ''}</details>`; }).join('') || '<div class="empty-state">No chapters match.</div>';
+          h += '</details>';
+        });
+        h += `<section class="card card-pad"><h2>Add a custom chapter</h2><div class="row-actions"><select id="nc-cg" class="tinput" aria-label="Class and subject">${NC.map(g => `<option value="${g[0]}">${g[1]}</option>`).join('')}</select><input id="nc-cn" class="tinput" maxlength="80" placeholder="Chapter name" aria-label="Chapter name"><button class="secondary-button" id="nc-add" type="button">Add</button></div><p class="subheading">Custom chapters never change the official list.</p><button class="secondary-button" id="nc-reset" type="button">Reset checklist…</button></section>`;
+        root.innerHTML = h;
+        const ed = $('nc-ed'); if (ed) ed.value = data.meta.edition;
+      }
+      $('nc-root').addEventListener('toggle', e => { const k = e.target.dataset && e.target.dataset.k; if (k) e.target.open ? ncOpen.add(k) : ncOpen.delete(k); }, true);
+      $('nc-root').addEventListener('input', e => { if (e.target.id === 'nc-q') { ncQuery = e.target.value; renderNcert(); const i = $('nc-q'); i.focus(); i.setSelectionRange(ncQuery.length, ncQuery.length); } });
+      $('nc-root').addEventListener('change', e => {
+        const t = e.target;
+        if (t.id === 'nc-ed') { data.meta.edition = t.value; saveData(); renderNcert(); return; }
+        if (t.dataset.id) { ncSt(t.dataset.id)[t.dataset.f] = t.checked; saveData('Chapter progress saved.'); renderNcert(); }
+      });
+      $('nc-root').addEventListener('click', e => {
+        const t = e.target.closest('button'); if (!t) return;
+        if (t.dataset.f && t.classList.contains('chip')) { ncFilter = t.dataset.f; renderNcert(); }
+        else if (t.dataset.del) { if (window.confirm('Delete this custom chapter and its progress?')) { data.custom = data.custom.filter(c => c.id !== t.dataset.del); delete data.ncert[t.dataset.del]; saveData(); renderNcert(); } }
+        else if (t.id === 'nc-add') { const name = $('nc-cn').value.trim(); if (!name) return; data.custom.push({ id: 'x' + Date.now().toString(36) + Math.floor(Math.random() * 1e4), g: $('nc-cg').value, name }); saveData('Custom chapter added.'); renderNcert(); }
+        else if (t.id === 'nc-reset') {
+          if (!window.confirm('Reset ALL chapter ticks, mastery and study steps? Custom chapters stay but are unticked. A restore point is saved first.')) return;
+          if (!makeRestorePoint('Before checklist reset')) { window.alert('Could not save a restore point, so nothing was reset. Export a backup first.'); return; }
+          data.ncert = {}; saveData('Checklist reset. Use Backup → Restore it to undo.'); renderNcert(); renderBackup();
+        }
+      });
+      $('tab-ncert').addEventListener('click', () => setView('ncert'));
+      $('tab-backup').addEventListener('click', () => setView('backup'));
+      try { localStorage.setItem('st-probe', '1'); localStorage.removeItem('st-probe'); } catch (_) { warnSave(true); }
+      renderBackup();
+
+      // ===== Phase 2: actual study time tracking =====
+      var ACTS = ['Lecture', 'Self study', 'Questions', 'Revision', 'Test'], TSUBJ = [...SUBJECTS, 'Full syllabus'];
+      let tPer = 'day', wake = null;
+      function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+      const tMs = t => t.acc + (t.run && !t.gap ? Date.now() - t.seg : (t.run ? t.gapFrom - t.seg : 0));
+      const hms = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(n => String(n).padStart(2, '0')).join(':'); };
+      const tmsg = m => { $('t-msg').textContent = m; };
+      async function wl(on) {
+        try { if (on && navigator.wakeLock) wake = await navigator.wakeLock.request('screen'); else if (wake) { await wake.release(); wake = null; } } catch (_) {}
+      }
+      function chapterLabel(id) { for (const g of ncGroups()) { const r = g.rows.find(x => x.id === id); if (r) return `${g.title}: ${r.name}`; } return ''; }
+      function fillChapters() {
+        const sub = $('t-sub').value, key = { Maths: 'Mathematics', Physics: 'Physics', Chemistry: 'Chemistry' }[sub];
+        $('t-ch').innerHTML = '<option value="">No specific chapter</option>' + (key ? ncGroups().filter(g => g.title.endsWith(key)).map(g => `<optgroup label="${g.title}">${g.rows.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</optgroup>`).join('') : '');
+      }
+      function diskTimer() { try { const p = JSON.parse(localStorage.getItem(DB_KEY)); return p && p.timer || null; } catch (_) { return null; } }
+      function tCheck() {
+        const t = data.timer;
+        if (t && t.run && !t.gap && Date.now() - t.seen > 120000) { t.gap = true; t.gapFrom = t.seen; saveData(); }
+      }
+      function tStart() {
+        if (!data.timer && diskTimer()) { data.timer = diskTimer(); renderTimer(); tmsg('A timer is already active (possibly in another tab). Finish it first.'); return; }
+        if (data.timer) { tmsg('A timer is already active.'); return; }
+        const now = Date.now(), ch = $('t-ch').value;
+        data.timer = { id: 's' + now.toString(36) + Math.floor(Math.random() * 1e4).toString(36), subject: $('t-sub').value, chapter: ch, chLabel: ch ? chapterLabel(ch) : '', activity: $('t-act').value, start: now, seg: now, acc: 0, run: true, seen: now, pauses: 0 };
+        saveData('Timer started.'); wl(true); renderTimer(); tmsg('');
+      }
+      function tPause() { const t = data.timer; if (!t || !t.run || t.gap) return; t.acc += Date.now() - t.seg; t.run = false; t.pauses++; saveData(); wl(false); renderTimer(); }
+      function tResume() { const t = data.timer; if (!t || t.run) return; t.seg = t.seen = Date.now(); t.run = true; saveData(); wl(true); renderTimer(); }
+      function tStop() {
+        const t = data.timer; if (!t || t.gap) return;
+        const now = Date.now(), ms = tMs(t), minutes = Math.round(ms / 60000);
+        if (minutes < 1) { if (window.confirm('Less than a minute of focused time. Discard this session?')) { data.timer = null; saveData(); wl(false); renderTimer(); } return; }
+        data.sessions.push({ id: t.id, date: toISO(new Date(t.start)), subject: t.subject, activity: t.activity, chapter: t.chapter, chLabel: t.chLabel, minutes, paused: Math.max(0, Math.round((now - t.start - ms) / 60000)), start: t.start, end: now });
+        data.timer = null; saveData(`Saved ${formatMinutes(minutes)} of focused time.`); wl(false); renderTimer(); tmsg(`Saved ${formatMinutes(minutes)} of focused time.`);
+      }
+      function inPer(date) {
+        const today = todayISO();
+        return tPer === 'day' ? date === today : tPer === 'week' ? getWeekDates(today).includes(date) : date.slice(0, 7) === today.slice(0, 7);
+      }
+      function renderTimer() {
+        if (!$('t-sub')) return;
+        const t = data.timer, sel = $('t-sub');
+        if (!sel.options.length) {
+          sel.innerHTML = TSUBJ.map(s => `<option>${s}</option>`).join(''); $('t-act').innerHTML = ACTS.map(s => `<option>${s}</option>`).join(''); fillChapters();
+        }
+        if (t) {
+          if (![...$('t-ch').options].some(o => o.value === t.chapter)) $('t-ch').innerHTML += `<option value="${esc(t.chapter)}">${esc(t.chLabel)}</option>`;
+          sel.value = t.subject; $('t-act').value = t.activity; $('t-ch').value = t.chapter;
+        }
+        ['t-sub', 't-ch', 't-act'].forEach(i => { $(i).disabled = !!t; });
+        $('t-start').hidden = !!t; $('t-pause').hidden = !(t && t.run && !t.gap); $('t-resume').hidden = !(t && !t.run); $('t-stop').hidden = !t || !!t.gap; $('t-discard').hidden = !t;
+        $('t-gap').hidden = !(t && t.gap);
+        if (t && t.gap) $('t-gap-text').textContent = `The app was closed or asleep from ${new Date(t.gapFrom).toLocaleTimeString()} (${formatMinutes(Math.round((Date.now() - t.gapFrom) / 60000))} ago). Was that time spent studying?`;
+        $('t-status').textContent = t ? `${t.subject} · ${t.activity}${t.chLabel ? ' · ' + t.chLabel : ''} — ${t.gap ? 'needs your answer' : t.run ? 'running' : 'paused'}` : 'Choose what you are studying, then press Start.';
+        $('t-disp').textContent = hms(t ? tMs(t) : 0);
+        const today = todayISO(), wk = getWeekDates(today), S = data.sessions, sum = f => S.filter(s => f(s.date)).reduce((a, s) => a + s.minutes, 0);
+        const card = (l, v, n) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${formatMinutes(v)}</div><div class="metric-note">${n}</div></div>`;
+        const cnt = f => S.filter(s => f(s.date)).length;
+        $('t-totals').innerHTML = card('Today', sum(d => d === today), cnt(d => d === today) + ' sessions') + card('This week', sum(d => wk.includes(d)), cnt(d => wk.includes(d)) + ' sessions') + card('This month', sum(d => d.slice(0, 7) === today.slice(0, 7)), cnt(d => d.slice(0, 7) === today.slice(0, 7)) + ' sessions');
+        $('t-per').innerHTML = [['day', 'Today'], ['week', 'This week'], ['month', 'This month']].map(([k, l]) => `<button type="button" class="chip" data-p="${k}" aria-pressed="${tPer === k}">${l}</button>`).join('');
+        const cur = S.filter(s => inPer(s.date)), tot = cur.reduce((a, s) => a + s.minutes, 0);
+        const grp = (title, keyf, top) => {
+          const m = {}; cur.forEach(s => { const k = keyf(s); if (k) m[k] = (m[k] || 0) + s.minutes; });
+          const rows = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, top);
+          return `<h3 style="margin:12px 0 4px;font-size:16px">${title}</h3>` + (rows.map(([k, v]) => `<div class="cmp"><div class="cmp-h"><span>${esc(k)}</span><b>${formatMinutes(v)} · ${Math.round(v / tot * 100)}%</b></div><div class="cmp-b"><span style="width:${v / tot * 100}%"></span></div></div>`).join('') || '');
+        };
+        $('t-break').innerHTML = tot ? grp('By subject', s => s.subject, 4) + grp('By activity', s => s.activity, 5) + grp('By chapter', s => s.chLabel, 5) : '<div class="empty-state">No saved sessions in this period. Start the timer and press Stop to record one.</div>';
+        const hist = cur.slice().sort((a, b) => b.start - a.start).slice(0, 50);
+        $('t-hist').innerHTML = hist.map(s => `<div class="hrow"><div><strong>${formatMinutes(s.minutes)}</strong> · ${s.subject} · ${s.activity}<div class="session-meta">${dateLabel(s.date, { weekday: 'short', day: 'numeric', month: 'short' })}, ${new Date(s.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${s.paused ? ` · ${s.paused}m paused (not counted)` : ''}${s.chLabel ? '<br>' + esc(s.chLabel) : ''}</div></div><div class="acts"><button class="secondary-button" data-edit="${s.id}" type="button" aria-label="Edit minutes">Edit</button><button class="secondary-button" data-del="${s.id}" type="button" aria-label="Delete session">Delete</button></div></div>`).join('') || '<div class="empty-state">Nothing here yet.</div>';
+      }
+      $('t-start').addEventListener('click', tStart); $('t-pause').addEventListener('click', tPause); $('t-resume').addEventListener('click', tResume); $('t-stop').addEventListener('click', tStop);
+      $('t-discard').addEventListener('click', () => { if (data.timer && window.confirm('Discard this running session? The time will not be saved.')) { data.timer = null; saveData(); wl(false); renderTimer(); } });
+      $('t-sub').addEventListener('change', fillChapters);
+      $('t-gap-keep').addEventListener('click', () => { const t = data.timer; if (t) { t.gap = false; t.seen = Date.now(); saveData(); renderTimer(); } });
+      $('t-gap-drop').addEventListener('click', () => { const t = data.timer; if (t) { t.acc += t.gapFrom - t.seg; t.seg = t.seen = Date.now(); t.gap = false; saveData(); renderTimer(); } });
+      $('t-per').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { tPer = b.dataset.p; renderTimer(); } });
+      $('t-hist').addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.del && window.confirm('Delete this session?')) { data.sessions = data.sessions.filter(s => s.id !== b.dataset.del); saveData(); renderTimer(); }
+        if (b.dataset.edit) { const s = data.sessions.find(x => x.id === b.dataset.edit), v = Number(window.prompt('Correct the focused minutes (1–1440):', s.minutes)); if (Number.isInteger(v) && v >= 1 && v <= 1440) { s.minutes = v; saveData('Session corrected.'); renderTimer(); } }
+      });
+      $('tab-timer').addEventListener('click', () => setView('timer'));
+      setInterval(() => {
+        const t = data.timer; if (!t) return;
+        if (t.run && !t.gap && document.visibilityState === 'visible') { if (Date.now() - t.seen > 120000) { tCheck(); renderTimer(); return; } if (Date.now() - t.seen >= 15000) { t.seen = Date.now(); saveData(); } }
+        if ($('view-timer').classList.contains('active')) $('t-disp').textContent = hms(tMs(t));
+      }, 1000);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { tCheck(); if (data.timer && data.timer.run) wl(true); if ($('view-timer').classList.contains('active')) renderTimer(); } });
+      if (window.addEventListener) window.addEventListener('storage', e => { if (e.key === DB_KEY) { data = loadData(); renderAll(); renderTimer(); } });
+      tCheck();
+
+      // ===== Phase 3: chapter-wise question tracker =====
+      var QSRC = ['DPP', 'Module', 'PYQ (JEE Main)', 'PYQ (JEE Advanced)', 'NCERT', 'Reference book', 'Mock test', 'Other'];
+      const QSUB = { p: 'Physics', c: 'Chemistry', m: 'Maths' };
+      let qF = { per: 'all', cls: '', sub: '', src: '' }, qEdit = null, qOpen = new Set();
+      function effQ(date, subject, rec) {
+        let any = false, t = 0;
+        data.qlog.forEach(e => { if (e.date === date && e.sub === subject) { any = true; t += e.cor + e.inc; } });
+        return any ? t : safeInt(rec && rec.questions && rec.questions[subject]);
+      }
+      function qAgg(es) {
+        const a = { att: 0, cor: 0, inc: 0, skp: 0, first: 0, ret: 0 };
+        es.forEach(e => { const t = e.cor + e.inc; a.cor += e.cor; a.inc += e.inc; a.skp += e.skp; a.att += t; if (e.retry) a.ret += t; else a.first += t; });
+        a.acc = a.att ? Math.round(a.cor / a.att * 100) : null;
+        return a;
+      }
+      const qm = m => { $('q-msg').textContent = m; };
+      function qPer(date, per) {
+        const today = todayISO();
+        return per === 'all' || (per === 'day' ? date === today : per === 'week' ? getWeekDates(today).includes(date) : date.slice(0, 7) === today.slice(0, 7));
+      }
+      function qReset() {
+        qEdit = null; ['q-cor', 'q-inc', 'q-skp'].forEach(i => { $(i).value = ''; }); $('q-retry').checked = false;
+        $('q-title').textContent = 'Log questions'; $('q-save').textContent = 'Add entry'; $('q-cancel').hidden = true;
+      }
+      function qSave() {
+        const known = chList().find(c => c.id === $('q-ch').value), old = qEdit && data.qlog.find(e => e.id === qEdit);
+        const orphan = !known && old && old.ch === $('q-ch').value ? old : null;
+        if (!known && !orphan) { qm('Choose a chapter.'); return; }
+        const n = id => { const v = $(id).value.trim(); return v === '' ? 0 : Number(v); };
+        const cor = n('q-cor'), inc = n('q-inc'), skp = n('q-skp'), date = $('q-date').value;
+        if (![cor, inc, skp].every(v => Number.isInteger(v) && v >= 0 && v <= 9999)) { qm('Enter whole numbers from 0 to 9999.'); return; }
+        if (cor + inc + skp === 0) { qm('Enter at least one count.'); return; }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < START || date > END) { qm('Pick a date between 30 Oct 2026 and 31 May 2028.'); return; }
+        const rec = { id: qEdit || 'q' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), date, ch: known ? known.id : orphan.ch, cls: known ? known.cls : orphan.cls, sub: known ? known.sub : orphan.sub, chl: known ? `${known.g}: ${known.name}` : orphan.chl, src: $('q-src').value, cor, inc, skp, retry: $('q-retry').checked };
+        if (qEdit) data.qlog[data.qlog.findIndex(e => e.id === qEdit)] = rec; else data.qlog.push(rec);
+        const was = !!qEdit; qReset(); saveData(was ? 'Entry updated.' : 'Entry added.'); renderQs(); qm(was ? 'Entry updated.' : `Added: ${cor} correct, ${inc} incorrect, ${skp} skipped.`);
+      }
+      function renderQs() {
+        if (!$('q-ch')) return;
+        const M = data.meta, today = todayISO(), cur = $('q-ch').value;
+        $('q-ch').innerHTML = '<option value="">Choose a chapter</option>' + ncGroups().map(g => `<optgroup label="${g.title}">${g.rows.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('')}</optgroup>`).join('');
+        $('q-ch').value = cur;
+        if (!$('q-src').options.length) {
+          $('q-src').innerHTML = QSRC.map(s => `<option>${s}</option>`).join(''); $('q-date').value = clampDate(today);
+          $('q-fcls').innerHTML = '<option value="">All classes</option><option value="11">Class 11</option><option value="12">Class 12</option>';
+          $('q-fsub').innerHTML = '<option value="">All subjects</option>' + SUBJECTS.map(s => `<option>${s}</option>`).join('');
+          $('q-fsrc').innerHTML = '<option value="">All sources</option>' + QSRC.map(s => `<option>${s}</option>`).join('');
+        }
+        const base = data.qlog.filter(e => (!qF.cls || e.cls === qF.cls) && (!qF.sub || e.sub === qF.sub) && (!qF.src || e.src === qF.src)), per = base.filter(e => qPer(e.date, qF.per));
+        const card = (l, v, n) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}</div><div class="metric-note">${n}</div></div>`;
+        const ac = a => a.acc === null ? 'no attempts' : a.acc + '% accuracy';
+        $('q-roll').innerHTML = [['Today', 'day'], ['This week', 'week'], ['This month', 'month']].map(([l, p]) => { const a = qAgg(base.filter(e => qPer(e.date, p))); return card(l, a.att, `attempted · ${ac(a)}`); }).join('');
+        $('q-per').innerHTML = [['day', 'Today'], ['week', 'This week'], ['month', 'This month'], ['all', 'All time']].map(([k, l]) => `<button type="button" class="chip" data-p="${k}" aria-pressed="${qF.per === k}">${l}</button>`).join('');
+        const S = qAgg(per);
+        $('q-sum').innerHTML = card('Attempted', S.att, 'correct + incorrect') + card('Accuracy', S.acc === null ? '—' : S.acc + '%', 'correct ÷ attempted') + card('Correct', S.cor, '') + card('Incorrect', S.inc, '') + card('Skipped', S.skp, 'not attempted') + card('First / retry', `${S.first} / ${S.ret}`, 'attempted');
+        $('q-srcs').innerHTML = QSRC.map(s => [s, qAgg(per.filter(e => e.src === s))]).filter(x => x[1].att + x[1].skp > 0).map(([s, a]) => `<div class="cmp"><div class="cmp-h"><span>${s}</span><b>${a.att} · ${a.acc === null ? '—' : a.acc + '%'}</b></div><div class="cmp-b"><span style="width:${S.att ? a.att / S.att * 100 : 0}%"></span></div></div>`).join('') || '<div class="empty-state">No entries in this period. Log some questions above.</div>';
+        $('q-set').innerHTML = [['qDefault', 'Default target per chapter (0 = none)', 0], ['weakMin', 'Min. attempted before judging', 1], ['weakPct', 'Weak below accuracy %', 1], ['reviseDays', 'Revise after days', 1]].map(([k, l, lo]) => `<label>${l}<input class="tinput" type="number" inputmode="numeric" min="${lo}" data-set="${k}" value="${M[k]}"></label>`).join('');
+        const byCh = {}; base.forEach(e => (byCh[e.ch] || (byCh[e.ch] = [])).push(e));
+        $('q-chs').innerHTML = ncGroups().filter(g => (!qF.cls || g.id.slice(1, 3) === qF.cls) && (!qF.sub || QSUB[g.id[3]] === qF.sub)).map(g => {
+          const all = qAgg(g.rows.flatMap(r => byCh[r.id] || []));
+          return `<details class="grp" data-k="${g.id}" ${qOpen.has(g.id) ? 'open' : ''}><summary>${g.title}<span class="subheading">${all.att} attempted · ${all.acc === null ? '—' : all.acc + '%'}</span></summary>` + g.rows.map(r => {
+            const es = byCh[r.id] || [], a = qAgg(es), tgt = data.qtargets[r.id] !== undefined ? data.qtargets[r.id] : M.qDefault, pct = tgt ? Math.min(100, Math.round(a.first / tgt * 100)) : 0;
+            const last = es.reduce((m, e) => e.date > m ? e.date : m, ''), b = [];
+            if (!a.att) b.push('Not started'); else { if (a.att < M.weakMin) b.push('Low data'); else if (a.acc < M.weakPct) b.push('Weak'); if (daysBetween(last, today) > M.reviseDays) b.push('Revise'); }
+            const done = !!(data.ncert[r.id] && data.ncert[r.id].c);
+            return `<div class="qrow"><label class="ncr"><input type="checkbox" data-done="${r.id}" ${done ? 'checked' : ''}><span>${esc(r.name)}${done ? ' <em class="subheading">(completed)</em>' : ''}</span></label><div class="cmp-b"><span style="width:${pct}%"></span></div><div class="session-meta">${a.first}${tgt ? '/' + tgt : ''} first attempts${tgt ? '' : ' · no target'} · ✓${a.cor} ✗${a.inc} skipped ${a.skp} · ${a.acc === null ? '—' : a.acc + '%'}${b.map(x => `<span class="bdg ${x.split(' ')[0]}">${x}</span>`).join('')}</div><div class="row-actions"><button class="secondary-button" type="button" data-log="${r.id}">Log</button><button class="secondary-button" type="button" data-tgt="${r.id}">Target</button></div></div>`;
+          }).join('') + '</details>';
+        }).join('') || '<div class="empty-state">No chapters match these filters.</div>';
+        $('q-ent').innerHTML = per.slice().sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 30).map(e => `<div class="hrow"><div><strong>${e.cor + e.inc}</strong> attempted · ✓${e.cor} ✗${e.inc} skipped ${e.skp}${e.retry ? ' · retry' : ''}<div class="session-meta">${dateLabel(e.date, { weekday: 'short', day: 'numeric', month: 'short' })} · ${e.src}<br>${esc(e.chl)}</div></div><div class="acts"><button class="secondary-button" data-qedit="${e.id}" type="button">Edit</button><button class="secondary-button" data-qdel="${e.id}" type="button">Delete</button></div></div>`).join('') || '<div class="empty-state">Nothing logged yet.</div>';
+      }
+      $('q-save').addEventListener('click', qSave);
+      $('q-cancel').addEventListener('click', () => { qReset(); qm(''); });
+      $('view-qs').addEventListener('toggle', e => { const k = e.target.dataset && e.target.dataset.k; if (k) e.target.open ? qOpen.add(k) : qOpen.delete(k); }, true);
+      $('view-qs').addEventListener('change', e => {
+        const t = e.target;
+        if (t.id === 'q-fcls') qF.cls = t.value; else if (t.id === 'q-fsub') qF.sub = t.value; else if (t.id === 'q-fsrc') qF.src = t.value;
+        else if (t.dataset.set) { const lo = t.dataset.set === 'qDefault' ? 0 : 1, hi = t.dataset.set === 'weakPct' ? 100 : t.dataset.set === 'reviseDays' ? 365 : 99999, v = Number(t.value); if (t.value.trim() !== '' && Number.isInteger(v) && v >= lo && v <= hi) { data.meta[t.dataset.set] = v; saveData('Setting saved.'); } }
+        else if (t.dataset.done) { ncSt(t.dataset.done).c = t.checked; saveData('Chapter status saved.'); }
+        else return;
+        renderQs();
+      });
+      $('view-qs').addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.p) { qF.per = b.dataset.p; renderQs(); }
+        else if (b.dataset.log) { $('q-ch').value = b.dataset.log; $('q-cor').focus(); if ($('q-title').scrollIntoView) $('q-title').scrollIntoView(); }
+        else if (b.dataset.tgt) {
+          const id = b.dataset.tgt, v = window.prompt(`Question target for this chapter (0 = no target). Leave empty to use the default (${data.meta.qDefault}).`, data.qtargets[id] !== undefined ? data.qtargets[id] : '');
+          if (v === null) return;
+          if (v.trim() === '') delete data.qtargets[id]; else { const n = Number(v); if (!Number.isInteger(n) || n < 0 || n > 99999) { qm('Target must be a whole number from 0 to 99999.'); return; } data.qtargets[id] = n; }
+          saveData('Target saved.'); renderQs();
+        }
+        else if (b.dataset.qdel) { if (window.confirm('Delete this entry?')) { data.qlog = data.qlog.filter(x => x.id !== b.dataset.qdel); saveData('Entry deleted.'); renderQs(); } }
+        else if (b.dataset.qedit) {
+          const x = data.qlog.find(y => y.id === b.dataset.qedit); if (!x) return;
+          if (![...$('q-ch').options].some(o => o.value === x.ch)) $('q-ch').innerHTML += `<option value="${esc(x.ch)}">${esc(x.chl)}</option>`;
+          qEdit = x.id; $('q-ch').value = x.ch; $('q-src').value = x.src; $('q-date').value = x.date; $('q-cor').value = x.cor; $('q-inc').value = x.inc; $('q-skp').value = x.skp; $('q-retry').checked = !!x.retry;
+          $('q-title').textContent = 'Edit entry'; $('q-save').textContent = 'Save changes'; $('q-cancel').hidden = false; if ($('q-title').scrollIntoView) $('q-title').scrollIntoView();
+        }
+      });
+      function chList() { return ncGroups().flatMap(g => g.rows.map(r => ({ id: r.id, name: r.name, g: g.title, cls: g.id.slice(1, 3), sub: QSUB[g.id[3]] }))); }
+      $('tab-qs').addEventListener('click', () => setView('qs'));
+
+      // ===== Phase 4: consistency dashboard =====
+      let cPer = 'week', cAnchor = clampDate(todayISO());
+      function csBuild() {
+        const M = data.meta, today = todayISO(), last = today < END ? today : END, tm = {}, infos = {}, list = [];
+        data.sessions.forEach(s => { (tm[s.date] || (tm[s.date] = [])).push(s); });
+        for (let d = START; d <= last; d = addDays(d, 1)) {
+          const sch = SCHEDULES[dayIndex(d)] || [], rec = data.days[d] || {}, ss = rec.sessions || {};
+          const i = { date: d, planned: sch.length, done: 0, pmin: 0, tick: 0, tmin: 0, sm: {}, subPlan: {}, q: 0 }, ts = {}, ks = {};
+          SUBJECTS.forEach(k => { ts[k] = 0; ks[k] = 0; });
+          sch.forEach((s, x) => { i.pmin += s[1]; s[3].forEach(k => { if (k in ks) i.subPlan[k] = 1; }); if (ss[x]) { i.done++; i.tick += s[1]; s[3].forEach(k => { if (k in ks) ks[k] += s[1] / s[3].length; }); } });
+          (tm[d] || []).forEach(s => { i.tmin += s.minutes; if (s.subject in ts) ts[s.subject] += s.minutes; });
+          SUBJECTS.forEach(k => { i.sm[k] = Math.max(ks[k], ts[k]); i.q += effQ(d, k, rec) || 0; });
+          i.mins = Math.max(i.tick, i.tmin); i.any = i.mins > 0 || i.q > 0 || i.done > 0;
+          infos[d] = i; list.push(i);
+        }
+        const first = list.find(i => i.any), ts0 = first ? first.date : null, goal = Math.max(M.csGoalDay, M.csThr);
+        list.forEach(i => { i.st = !ts0 || i.date < ts0 ? 'before' : i.mins >= goal ? 'goal' : i.mins >= M.csThr ? 'active' : i.date === today ? 'today' : i.any ? 'low' : 'zero'; });
+        let cur = 0, longest = 0;
+        list.forEach(i => { if (i.st === 'goal' || i.st === 'active') { cur++; if (cur > longest) longest = cur; } else if (i.st === 'low' || i.st === 'zero') cur = 0; });
+        return { infos, list, ts: ts0, today, cur, longest };
+      }
+      function csPeriod(A, a, b) {
+        const M = data.meta, r = { n: 0, act: 0, goal: 0, zero: 0, low: 0, mins: 0, pmin: 0, tick: 0, tmin: 0, ps: 0, ds: 0, sp: {}, sa: {}, sm: {} };
+        SUBJECTS.forEach(k => { r.sp[k] = 0; r.sa[k] = 0; r.sm[k] = 0; });
+        for (let d = a < START ? START : a; d <= b && d <= A.today && d <= END; d = addDays(d, 1)) {
+          const i = A.infos[d]; if (!i || i.st === 'before' || i.st === 'today') continue;
+          r.n++; r.mins += i.mins; r.pmin += i.pmin; r.tick += i.tick; r.tmin += i.tmin; r.ps += i.planned; r.ds += i.done;
+          if (i.st === 'goal' || i.st === 'active') r.act++; if (i.st === 'goal') r.goal++; if (i.st === 'zero') r.zero++; if (i.st === 'low') r.low++;
+          SUBJECTS.forEach(k => { if (i.subPlan[k]) { r.sp[k]++; r.sm[k] += i.sm[k]; if (i.sm[k] >= M.csSubj) r.sa[k]++; } });
+        }
+        r.cons = r.n ? Math.round(r.act / r.n * 100) : null;
+        return r;
+      }
+      const STT = { before: 'before tracking began', future: 'future', zero: 'no activity recorded (counted as missed)', low: 'below the minimum', active: 'active', goal: 'goal met', today: 'today, still in progress' };
+      function renderCs() {
+        if (!$('cs-root')) return;
+        const M = data.meta, A = csBuild(), r = rangeOf(cPer, cAnchor), pr = rangeOf(cPer, shiftAnchor(cPer, cAnchor, -1));
+        $('cs-periods').innerHTML = SP.filter(x => x[0] !== 'custom').map(([k, l]) => `<button type="button" class="chip" data-p="${k}" aria-pressed="${k === cPer}">${l}</button>`).join('');
+        $('cs-label').textContent = titleFor(cPer, r);
+        const S = csPeriod(A, r[0], r[1]), P = csPeriod(A, pr[0], pr[1]);
+        const w = getWeekDates(cAnchor), wMin = w.reduce((n, d) => n + (A.infos[d] && A.infos[d].st !== 'before' ? A.infos[d].mins : 0), 0), wPct = Math.min(100, Math.round(wMin / M.csGoalWeek * 100));
+        const cc = (l, v, n) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value">${v}</div><div class="metric-note">${n}</div></div>`, pc = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+        const dd = S.cons !== null && P.cons !== null ? S.cons - P.cons : null;
+        let h = A.ts ? '' : '<div class="notice">Nothing recorded yet. Tick sessions, use the timer or log questions, and your streaks and heatmap will start from your first active day.</div>';
+        h += '<div class="sgrid">' + cc('Current streak', A.cur + ' d', A.cur ? 'days in a row' : 'start one today') + cc('Longest streak', A.longest + ' d', 'since tracking began') +
+          cc('Active days', `${S.act}/${S.n}`, `${pc(S.act, S.n)} consistency`) + cc('Missed days', S.zero, `${S.low} below minimum`) +
+          cc('Daily goal met', `${S.goal}/${S.n}`, `${pc(S.goal, S.n)} of days`) + cc('Weekly goal', wPct + '%', `${formatMinutes(wMin)} of ${formatMinutes(M.csGoalWeek)}`) +
+          cc('Planned vs done', formatMinutes(S.tick), `of ${formatMinutes(S.pmin)} planned · ${S.ds}/${S.ps} sessions`) + cc('Focused (timer)', formatMinutes(S.tmin), dd === null ? 'no previous period' : `${dd > 0 ? '+' : ''}${dd} pts consistency vs previous`) + '</div>';
+        const cr = cPer === 'day' ? [addDays(cAnchor, -13), cAnchor] : r, days = [];
+        for (let d = cr[0] < START ? START : cr[0]; d <= cr[1] && d <= A.today && d <= END; d = addDays(d, 1)) {
+          const i = A.infos[d]; if (!i || i.st === 'before') continue;
+          const el = i.st !== 'today'; days.push({ date: d, min: i.mins, pmin: el ? i.pmin : 0, planned: el ? 1 : 0, done: i.st === 'goal' || i.st === 'active' ? 1 : 0, q: i.st === 'goal' ? 1 : 0 });
+        }
+        CH = {};
+        h += '<div class="chart-grid">';
+        if (days.length) {
+          const bk = buckets(days), L = bk.map(b => b.label), pct = b => b.planned ? Math.round(b.done / b.planned * 100) : 0;
+          const sub = SUBJECTS.map(k => S.sp[k] ? Math.round(S.sa[k] / S.sp[k] * 100) : 0);
+          h += box('cs1', 'Planned vs actual study time', barChart('cs1', L, [{ c: '#d3c9bf', v: bk.map(b => b.pmin / 60) }, { c: '#ef5b35', v: bk.map(b => b.min / 60) }], bk.map(b => `${b.full}: ${fh(b.min)} of ${fh(b.pmin)} planned`), v => nf(v) + 'h'), cPer === 'day' ? 'Last 14 days' : '"Actual" is the larger of timer minutes and ticked-session minutes');
+          h += box('cs2', 'Consistency', lineChart('cs2', L, bk.map(pct), '#26744f', bk.map(b => `${b.full}: ${pct(b)}% (${b.done}/${b.planned} days active)`), v => Math.round(v) + '%', 100), 'Active days ÷ counted days');
+          h += box('cs3', 'Daily goal completion', lineChart('cs3', L, bk.map(b => b.planned ? Math.round(b.q / b.planned * 100) : 0), '#643b9b', bk.map(b => `${b.full}: ${b.q}/${b.planned} days reached ${formatMinutes(M.csGoalDay)}`), v => Math.round(v) + '%', 100), `Goal: ${formatMinutes(M.csGoalDay)} a day`);
+          h += box('cs4', 'Subject-wise consistency', barChart('cs4', SUBJECTS, [{ c: '#285f9b', v: sub }], SUBJECTS.map((k, i) => `${k}: ${S.sa[k]} of ${S.sp[k]} scheduled days with ${formatMinutes(M.csSubj)}+ (${formatMinutes(S.sm[k])} total)`), v => Math.round(v) + '%'), `A subject counts on days it is scheduled and you do ${formatMinutes(M.csSubj)}+`);
+        } else h += '<div class="empty-state">No counted days in this period yet.</div>';
+        h += '</div>';
+        const first = getWeekDates(START)[0], lastD = getWeekDates(END)[6], tips = [];
+        let cells = '', mons = '', pm = '';
+        for (let d = first, col = 0; d <= lastD; d = addDays(d, 1)) {
+          if (dayIndex(d) === 1) { const m = d.slice(0, 7); mons += `<b>${m !== pm ? dateLabel(d, { month: 'short' }) : ''}</b>`; pm = m; }
+          if (d < START || d > END) { cells += '<i></i>'; continue; }
+          const i = A.infos[d], st = d > A.today ? 'future' : i.st;
+          tips.push(`${dateLabel(d, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}: ${STT[st]}${i && st !== 'future' && st !== 'before' ? ` · ${fh(i.mins)} · ${i.done}/${i.planned} sessions` : ''}`);
+          cells += `<button type="button" class="hmc ${st}" data-c="hm" data-i="${tips.length - 1}" aria-label="${tips[tips.length - 1]}"></button>`;
+        }
+        CH.hm = tips;
+        h += `<section class="card card-pad" style="margin-top:18px"><h2>Heatmap: whole preparation period</h2><div class="hm-scroll" id="hm-scroll"><div class="hm-inner"><div class="hm-mon">${mons}</div><div class="hm">${cells}</div></div></div><div class="hm-key">${[['before', 'Before tracking'], ['future', 'Future'], ['zero', 'No activity'], ['low', 'Below minimum'], ['active', 'Active'], ['goal', 'Goal met']].map(([k, l]) => `<span><i class="hmc ${k}"></i>${l}</span>`).join('')}</div><div class="tip" id="tip-hm">Tap a day for details.</div></section>`;
+        h += `<section class="card card-pad" style="margin-top:14px"><h2>Goals and rules</h2><div class="qset">${[['csThr', 'Minimum minutes for an active day'], ['csGoalDay', 'Daily goal (minutes)'], ['csGoalWeek', 'Weekly goal (minutes)'], ['csSubj', 'Minimum minutes for a subject day']].map(([k, l]) => `<label>${l}<input class="tinput" type="number" inputmode="numeric" min="1" data-cs="${k}" value="${M[k]}"></label>`).join('')}</div>
+          <ul class="subheading" style="padding-left:18px;margin:0"><li>Study minutes for a day = the larger of timer minutes and ticked-session minutes (never added together).</li><li>Tracking begins on your first day with any activity. Earlier days are not counted.</li><li>After that, a past day with nothing recorded counts as missed, because the app can't tell "didn't study" from "didn't log".</li><li>Future days are never counted. Today only counts once you reach the minimum.</li><li>A streak is consecutive active days; a missed or below-minimum day resets it.</li></ul></section>`;
+        $('cs-root').innerHTML = h;
+        const sc = $('hm-scroll'); if (sc) sc.scrollLeft = Math.max(0, Math.floor(daysBetween(first, A.today < START ? START : A.today) / 7) * 17 - 120);
+      }
+      $('tab-cs').addEventListener('click', () => setView('cs'));
+      $('cs-periods').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (b) { cPer = b.dataset.p; renderCs(); } });
+      function csStep(dir) { const na = shiftAnchor(cPer, cAnchor, dir), nr = rangeOf(cPer, na); if (nr[1] < START || nr[0] > END) return; cAnchor = na; renderCs(); }
+      $('cs-prev').addEventListener('click', () => csStep(-1)); $('cs-next').addEventListener('click', () => csStep(1));
+      $('cs-root').addEventListener('change', e => {
+        const k = e.target.dataset.cs; if (!k) return;
+        const v = Number(e.target.value), hi = k === 'csGoalWeek' ? 10080 : 1440;
+        if (e.target.value.trim() !== '' && Number.isInteger(v) && v >= 1 && v <= hi) { data.meta[k] = v; saveData('Setting saved.'); }
+        renderCs();
+      });
+      $('cs-root').addEventListener('click', e => {
+        const t = e.target.closest('[data-c]'); if (!t) return;
+        const id = t.dataset.c, tip = $('tip-' + id); if (tip && CH[id]) tip.textContent = CH[id][+t.dataset.i];
+        document.querySelectorAll(`#cs-root [data-c="${id}"].sel`).forEach(x => x.classList.remove('sel')); t.classList.add('sel');
+      });
+
+      // Allow keyboard users to switch tabs with the arrow keys.
+      document.querySelector('.tabs').addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const ids = ['tab-day', 'tab-timetable', 'tab-timer', 'tab-qs', 'tab-cs', 'tab-progress', 'tab-stats', 'tab-ncert', 'tab-backup'], at = Math.max(0, ids.indexOf(event.target.id));
+        $(ids[(at + (event.key === 'ArrowRight' ? 1 : ids.length-1)) % ids.length]).click();
+      });
+      renderAll();
+    })();
+  </script>
+
+  <script>
+    (() => {
+      const body = document.body, themeBtn = document.getElementById('theme-toggle');
+      let theme = 'pirate';
+      try { theme = localStorage.getItem('study-tracker-theme') || 'pirate'; } catch (_) {}
+      function applyTheme(next) {
+        theme = next === 'standard' ? 'standard' : 'pirate';
+        body.classList.toggle('theme-pirate', theme === 'pirate');
+        body.classList.toggle('theme-standard', theme === 'standard');
+        themeBtn.textContent = theme === 'pirate' ? '☀ Standard' : '☠ Pirate';
+        themeBtn.title = theme === 'pirate' ? 'Switch to standard theme' : 'Switch to pirate theme';
+        themeBtn.setAttribute('aria-pressed', String(theme === 'pirate'));
+        document.getElementById('meta-theme-color').content = theme === 'pirate' ? '#082b45' : '#f7f3ee';
+        try { localStorage.setItem('study-tracker-theme', theme); } catch (_) {}
+      }
+      applyTheme(theme);
+      themeBtn.addEventListener('click', () => applyTheme(theme === 'pirate' ? 'standard' : 'pirate'));
+
+      const mobileNav = document.getElementById('mobile-nav'), moreMenu = document.getElementById('more-menu'), moreToggle = document.getElementById('more-toggle');
+      function syncMobileNav(which) {
+        mobileNav.querySelectorAll('[data-tab]').forEach(b => {
+          const active = b.dataset.tab === which;
+          if (active) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');
+        });
+        const moreActive = ['timer','cs','progress','ncert','backup'].includes(which);
+        if (moreActive) moreToggle.setAttribute('aria-current','page'); else moreToggle.removeAttribute('aria-current');
+      }
+      mobileNav.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => { document.getElementById('tab-' + b.dataset.tab).click(); moreMenu.hidden = true; moreToggle.setAttribute('aria-expanded','false'); }));
+      moreToggle.addEventListener('click', () => { moreMenu.hidden = !moreMenu.hidden; moreToggle.setAttribute('aria-expanded',String(!moreMenu.hidden)); });
+      moreMenu.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => { document.getElementById('tab-' + b.dataset.goto).click(); moreMenu.hidden = true; moreToggle.setAttribute('aria-expanded','false'); }));
+      document.addEventListener('click', e => { if (!moreMenu.hidden && !moreMenu.contains(e.target) && !moreToggle.contains(e.target)) { moreMenu.hidden = true; moreToggle.setAttribute('aria-expanded','false'); } });
+      const originalSetView = window.setView;
+      // setView lives inside the tracker closure; mirror active tab from its existing ARIA state.
+      document.querySelector('.tabs').addEventListener('click', e => { const tab = e.target.closest('[role="tab"]'); if (tab) { const which = tab.id.replace('tab-',''); syncMobileNav(which); } });
+      syncMobileNav('day');
+
+      const installBtn = document.getElementById('install-app'), installNote = document.getElementById('install-note');
+      let installPrompt = null;
+      window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; installBtn.hidden = false; });
+      installBtn.addEventListener('click', async () => {
+        if (installPrompt) { installPrompt.prompt(); try { await installPrompt.userChoice; } catch (_) {} installPrompt = null; installBtn.hidden = true; }
+        else { installNote.hidden = false; installNote.textContent = location.protocol === 'file:' ? 'For PWA installation and offline caching, serve this folder from HTTPS or localhost; opening the HTML file directly does not support service workers.' : 'Use your browser menu and choose “Install app” or “Add to Home screen” if available.'; }
+      });
+      window.addEventListener('appinstalled', () => { installBtn.hidden = true; installNote.hidden = false; installNote.textContent = 'Study Tracker was installed. Your saved tracker data remains in this browser profile.'; });
+      if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./study-tracker-sw.js').then(() => { installNote.hidden = false; installNote.textContent = 'Offline support is ready for the app shell. Previously saved study data stays on this device.'; }).catch(() => {}));
+      }
+    })();
+  </script>
+
+</body>
+</html>
